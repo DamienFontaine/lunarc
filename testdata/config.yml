@@ -1,0 +1,27 @@
+test:
+  server:
+    port: 8888
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: mongo
+    database: test
+development:
+  server:
+    port: 8888
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: localhost
+    database: test
+staging:
+  server:
+    port: 8888
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: mongo
+    database: test
