@@ -1,8 +1,7 @@
-# Lunarc - Backend
+# Lunarc
 
 ## Download and install
 
-Création dex mocks:
 ``` sh
 $ go get github.com/DamienFontaine/lunarc
 ```
