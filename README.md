@@ -1,5 +1,7 @@
 # Lunarc
 
+[![Build Status](https://travis-ci.org/DamienFontaine/lunarc.svg?branch=master)](https://travis-ci.org/DamienFontaine/lunarc)
+
 ## Download and install
 
 ``` sh
