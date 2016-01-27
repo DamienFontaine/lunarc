@@ -26,6 +26,7 @@ import (
 type IArticleService interface {
 	GetByID(id string) models.Article
 	GetByPretty(pretty string) models.Article
+	FindByStatus(status string) []models.Article
 	Add(article models.Article) models.Article
 	FindAll() []models.Article
 	Delete(article models.Article)
@@ -72,6 +73,18 @@ func (a *ArticleService) Add(article models.Article) models.Article {
 
 	articleCollection.FindId(id).One(&article)
 	return article
+}
+
+//FindByStatus retourne les articles d'après leur status
+func (a *ArticleService) FindByStatus(status string) []models.Article {
+	mongo := a.MongoService.Mongo.Copy()
+	defer mongo.Close()
+
+	articleCollection := mongo.Database.C("article")
+	var articles []models.Article
+	articleCollection.Find(bson.M{"status": status}).All(&articles)
+
+	return articles
 }
 
 //FindAll retourne tout les articles

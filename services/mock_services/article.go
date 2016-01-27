@@ -4,8 +4,8 @@
 package mock_services
 
 import (
-	gomock "github.com/golang/mock/gomock"
 	models "github.com/DamienFontaine/lunarc/models"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // Mock of IArticleService interface
@@ -47,6 +47,16 @@ func (_m *MockIArticleService) GetByPretty(pretty string) models.Article {
 
 func (_mr *_MockIArticleServiceRecorder) GetByPretty(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetByPretty", arg0)
+}
+
+func (_m *MockIArticleService) FindByStatus(status string) []models.Article {
+	ret := _m.ctrl.Call(_m, "FindByStatus", status)
+	ret0, _ := ret[0].([]models.Article)
+	return ret0
+}
+
+func (_mr *_MockIArticleServiceRecorder) FindByStatus(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "FindByStatus", arg0)
 }
 
 func (_m *MockIArticleService) Add(article models.Article) models.Article {
