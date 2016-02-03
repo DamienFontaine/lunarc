@@ -25,11 +25,11 @@ import (
 
 //IUserService interface
 type IUserService interface {
-	GetByID(id string) models.User
+	GetByID(id string) (models.User, error)
 	Get(username string, password string) (models.User, error)
-	Add(user models.User) error
-	FindAll() []models.User
-	Delete(user models.User)
+	Add(user models.User) (models.User, error)
+	FindAll() ([]models.User, error)
+	Delete(user models.User) error
 	Update(id string, user models.User) error
 }
 

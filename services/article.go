@@ -26,13 +26,13 @@ import (
 
 //IArticleService interface
 type IArticleService interface {
-	GetByID(id string) models.Article
-	GetByPretty(pretty string) models.Article
-	FindByStatus(status string) []models.Article
-	Add(article models.Article) models.Article
-	FindAll() []models.Article
-	Delete(article models.Article)
-	Update(id string, article models.Article)
+	GetByID(id string) (models.Article, error)
+	GetByPretty(pretty string) (models.Article, error)
+	FindByStatus(status string) ([]models.Article, error)
+	Add(article models.Article) (models.Article, error)
+	FindAll() ([]models.Article, error)
+	Delete(article models.Article) error
+	Update(id string, article models.Article) error
 }
 
 //ArticleService works with models.Article
