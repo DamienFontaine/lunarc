@@ -16,6 +16,8 @@
 package services
 
 import (
+	"errors"
+
 	"github.com/DamienFontaine/lunarc/models"
 	"github.com/DamienFontaine/lunarc/utils"
 	"gopkg.in/mgo.v2/bson"
@@ -37,13 +39,16 @@ type UserService struct {
 }
 
 //Get retourne l'utilisateur si celui-ci existe
-func (u *UserService) Get(username string, password string) (models.User, error) {
+func (u *UserService) Get(username string, password string) (user models.User, err error) {
 	mongo := u.MongoService.Mongo.Copy()
 	defer mongo.Close()
 
 	userCollection := mongo.Database.C("user")
-	var user models.User
-	userCollection.Find(bson.M{"username": username}).One(&user)
+	err = userCollection.Find(bson.M{"username": username}).One(&user)
+
+	if err != nil {
+		return models.User{}, err
+	}
 
 	valid, err := utils.CheckPassword([]byte(password), []byte(user.Salt), []byte(user.Password))
 	if err != nil {
@@ -52,66 +57,92 @@ func (u *UserService) Get(username string, password string) (models.User, error)
 	if valid {
 		return user, nil
 	}
-	return models.User{}, err
+	return models.User{}, errors.New("Invalid password")
 }
 
 //GetByID retourne l'utilisateur d'après son ID
-func (u *UserService) GetByID(id string) models.User {
+func (u *UserService) GetByID(id string) (user models.User, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.New("Incorrect ID")
+		}
+	}()
+
 	mongo := u.MongoService.Mongo.Copy()
 	defer mongo.Close()
 
 	userCollection := mongo.Database.C("user")
-	var user models.User
-	userCollection.FindId(bson.ObjectIdHex(id)).One(&user)
+	err = userCollection.FindId(bson.ObjectIdHex(id)).One(&user)
 
-	return user
+	if err != nil {
+		return models.User{}, err
+	}
+
+	return user, nil
 }
 
 //FindAll retourne tout les utilisateurs
-func (u *UserService) FindAll() []models.User {
+func (u *UserService) FindAll() (users []models.User, err error) {
 	mongo := u.MongoService.Mongo.Copy()
 	defer mongo.Close()
 
 	userCollection := mongo.Database.C("user")
-	var users []models.User
-	userCollection.Find(nil).All(&users)
-	return users
+	err = userCollection.Find(nil).All(&users)
+
+	if err != nil {
+		return users, errors.New("Error")
+	}
+
+	return users, nil
 }
 
 //Add ajoute un nouvel utilisateur
-func (u *UserService) Add(user models.User) error {
+func (u *UserService) Add(user models.User) (models.User, error) {
 	mongo := u.MongoService.Mongo.Copy()
 	defer mongo.Close()
 	id := bson.NewObjectId()
 
 	salt, err := utils.GenerateSalt()
 	if err != nil {
-		return err
+		return models.User{}, errors.New("Error when generatiing Salt")
 	}
 	user.Salt = string(salt[:32])
 
 	password, err := utils.HashPassword([]byte(user.Password), salt)
 	if err != nil {
-		return err
+		return models.User{}, err
 	}
 	user.Password = string(password[:32])
 
 	userCollection := mongo.Database.C("user")
 	userCollection.Insert(&models.User{id, user.Username, user.Firstname, user.Lastname, user.Password, user.Salt, user.Email})
 
-	return nil
+	err = userCollection.FindId(id).One(&user)
+
+	if err != nil {
+		return models.User{}, errors.New("User not saved")
+	}
+
+	return user, nil
 }
 
 //Delete supprime un utilisateur
-func (u *UserService) Delete(user models.User) {
+func (u *UserService) Delete(user models.User) (err error) {
 	mongo := u.MongoService.Mongo.Copy()
 	defer mongo.Close()
 	userCollection := mongo.Database.C("user")
-	userCollection.Remove(bson.M{"_id": user.ID, "username": user.Username})
+	err = userCollection.Remove(bson.M{"_id": user.ID, "username": user.Username})
+	return
 }
 
 //Update modifie un utilisateur existant
-func (u *UserService) Update(id string, user models.User) error {
+func (u *UserService) Update(id string, user models.User) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.New("Incorrect ID")
+		}
+	}()
+
 	mongo := u.MongoService.Mongo.Copy()
 	defer mongo.Close()
 
@@ -128,7 +159,7 @@ func (u *UserService) Update(id string, user models.User) error {
 	user.Password = string(password[:32])
 
 	userCollection := mongo.Database.C("user")
-	userCollection.Update(bson.M{"_id": bson.ObjectIdHex(id)}, bson.M{"$set": bson.M{"username": user.Username, "lastname": user.Lastname, "firstname": user.Firstname, "password": user.Password, "salt": user.Salt, "email": user.Email}})
+	err = userCollection.Update(bson.M{"_id": bson.ObjectIdHex(id)}, bson.M{"$set": bson.M{"username": user.Username, "lastname": user.Lastname, "firstname": user.Firstname, "password": user.Password, "salt": user.Salt, "email": user.Email}})
 
-	return nil
+	return err
 }
