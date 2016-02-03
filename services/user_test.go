@@ -38,6 +38,17 @@ func UserBeforeEach() {
 	userService = UserService{MongoService: MongoService{Mongo: mongo}}
 }
 
+func TestUserService(t *testing.T) {
+	BeforeEach()
+
+	var i interface{} = &userService
+	_, ok := i.(IUserService)
+
+	if !ok {
+		t.Fatalf("UserService must implement IUserService")
+	}
+}
+
 func TestGetNormal(t *testing.T) {
 	UserBeforeEach()
 

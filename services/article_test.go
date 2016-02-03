@@ -37,6 +37,17 @@ func BeforeEach() {
 	articleService = ArticleService{MongoService: MongoService{Mongo: mongo}}
 }
 
+func TestArticleService(t *testing.T) {
+	BeforeEach()
+
+	var i interface{} = &articleService
+	_, ok := i.(IArticleService)
+
+	if !ok {
+		t.Fatalf("ArticleService must implement IArticleService")
+	}
+}
+
 func TestGetByIdNormal(t *testing.T) {
 	BeforeEach()
 
@@ -140,7 +151,11 @@ func TestAddNormal(t *testing.T) {
 
 	article := models.Article{Titre: "New Article"}
 
-	article = articleService.Add(article)
+	article, err := articleService.Add(article)
+
+	if err != nil {
+		t.Fatalf("Mustn't return an error")
+	}
 
 	if reflect.DeepEqual(article, models.Article{}) {
 		t.Fatalf("Must return an article")
@@ -155,7 +170,7 @@ func TestUpdateNormal(t *testing.T) {
 	newTitle := "New Article 2.1"
 	pretty := utils.SanitizeTitle(newTitle)
 	article := models.Article{Titre: oldTitle}
-	article = articleService.Add(article)
+	article, _ = articleService.Add(article)
 
 	article.Titre = newTitle
 	err := articleService.Update(string(article.ID.Hex()), article)
@@ -193,7 +208,7 @@ func TestDeleteNormal(t *testing.T) {
 	BeforeEach()
 
 	article := models.Article{Titre: "New Article Delete"}
-	article = articleService.Add(article)
+	article, _ = articleService.Add(article)
 
 	err := articleService.Delete(article)
 

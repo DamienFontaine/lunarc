@@ -71,7 +71,7 @@ func (a *ArticleService) GetByPretty(pretty string) (article models.Article, err
 }
 
 //Add ajoute un nouvel article
-func (a *ArticleService) Add(article models.Article) models.Article {
+func (a *ArticleService) Add(article models.Article) (models.Article, error) {
 	mongo := a.MongoService.Mongo.Copy()
 	defer mongo.Close()
 	id := bson.NewObjectId()
@@ -82,10 +82,10 @@ func (a *ArticleService) Add(article models.Article) models.Article {
 	err := articleCollection.FindId(id).One(&article)
 
 	if err != nil {
-		return article
+		return models.Article{}, err
 	}
 
-	return article
+	return article, nil
 }
 
 //FindByStatus retourne les articles d'après leur status
