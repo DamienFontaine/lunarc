@@ -4,8 +4,8 @@
 package mock_services
 
 import (
-	gomock "github.com/golang/mock/gomock"
 	models "github.com/DamienFontaine/lunarc/models"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // Mock of IUserService interface
@@ -29,10 +29,11 @@ func (_m *MockIUserService) EXPECT() *_MockIUserServiceRecorder {
 	return _m.recorder
 }
 
-func (_m *MockIUserService) GetByID(id string) models.User {
+func (_m *MockIUserService) GetByID(id string) (models.User, error) {
 	ret := _m.ctrl.Call(_m, "GetByID", id)
 	ret0, _ := ret[0].(models.User)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 func (_mr *_MockIUserServiceRecorder) GetByID(arg0 interface{}) *gomock.Call {
@@ -50,28 +51,32 @@ func (_mr *_MockIUserServiceRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Get", arg0, arg1)
 }
 
-func (_m *MockIUserService) Add(article models.User) error {
-	ret := _m.ctrl.Call(_m, "Add", article)
-	ret0, _ := ret[0].(error)
-	return ret0
+func (_m *MockIUserService) Add(user models.User) (models.User, error) {
+	ret := _m.ctrl.Call(_m, "Add", user)
+	ret0, _ := ret[0].(models.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 func (_mr *_MockIUserServiceRecorder) Add(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Add", arg0)
 }
 
-func (_m *MockIUserService) FindAll() []models.User {
+func (_m *MockIUserService) FindAll() ([]models.User, error) {
 	ret := _m.ctrl.Call(_m, "FindAll")
 	ret0, _ := ret[0].([]models.User)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 func (_mr *_MockIUserServiceRecorder) FindAll() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "FindAll")
 }
 
-func (_m *MockIUserService) Delete(user models.User) {
-	_m.ctrl.Call(_m, "Delete", user)
+func (_m *MockIUserService) Delete(user models.User) error {
+	ret := _m.ctrl.Call(_m, "Delete", user)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 func (_mr *_MockIUserServiceRecorder) Delete(arg0 interface{}) *gomock.Call {

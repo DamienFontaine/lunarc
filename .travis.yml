@@ -2,18 +2,22 @@ language: go
 sudo: false
 go:
   - 1.5
+services:
+  - mongodb
 before_install:
   - go get github.com/axw/gocov/gocov
   - go get github.com/modocache/gover
   - go get github.com/mattn/goveralls
   - if ! go get github.com/golang/tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
+before_script:
+  - mongorestore testdata/mongo
 script:
-    - go test -coverprofile=config.coverprofile ./config
-    - go test -coverprofile=controllers.coverprofile ./controllers
-    - go test -coverprofile=datasource.coverprofile ./datasource
-    - go test -coverprofile=models.coverprofile ./models
-    - go test -coverprofile=services.coverprofile ./services
-    - go test -coverprofile=utils.coverprofile ./utils
-    - go test -coverprofile=core.coverprofile
-    - $HOME/gopath/bin/gover
-    - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci
+  - go test -coverprofile=config.coverprofile ./config
+  - go test -coverprofile=controllers.coverprofile ./controllers
+  - go test -coverprofile=datasource.coverprofile ./datasource
+  - go test -coverprofile=models.coverprofile ./models
+  - go test -tags=integration -coverprofile=services.coverprofile ./services
+  - go test -coverprofile=utils.coverprofile ./utils
+  - go test -coverprofile=core.coverprofile
+  - $HOME/gopath/bin/gover
+  - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci

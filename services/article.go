@@ -16,6 +16,8 @@
 package services
 
 import (
+	"errors"
+
 	"github.com/DamienFontaine/lunarc/models"
 	"github.com/DamienFontaine/lunarc/utils"
 	"gopkg.in/mgo.v2"
@@ -24,12 +26,13 @@ import (
 
 //IArticleService interface
 type IArticleService interface {
-	GetByID(id string) models.Article
-	GetByPretty(pretty string) models.Article
-	Add(article models.Article) models.Article
-	FindAll() []models.Article
-	Delete(article models.Article)
-	Update(id string, article models.Article)
+	GetByID(id string) (models.Article, error)
+	GetByPretty(pretty string) (models.Article, error)
+	FindByStatus(status string) ([]models.Article, error)
+	Add(article models.Article) (models.Article, error)
+	FindAll() ([]models.Article, error)
+	Delete(article models.Article) error
+	Update(id string, article models.Article) error
 }
 
 //ArticleService works with models.Article
@@ -38,31 +41,37 @@ type ArticleService struct {
 }
 
 //GetByID retourne l'article d'après son ID
-func (a *ArticleService) GetByID(id string) models.Article {
+func (a *ArticleService) GetByID(id string) (article models.Article, err error) {
 	mongo := a.MongoService.Mongo.Copy()
 	defer mongo.Close()
 
 	articleCollection := mongo.Database.C("article")
-	var article models.Article
-	articleCollection.FindId(bson.ObjectIdHex(id)).One(&article)
+	err = articleCollection.FindId(bson.ObjectIdHex(id)).One(&article)
 
-	return article
+	if err != nil {
+		return article, errors.New("No article")
+	}
+
+	return article, nil
 }
 
 //GetByPretty retourne l'article d'après son Pretty
-func (a *ArticleService) GetByPretty(pretty string) models.Article {
+func (a *ArticleService) GetByPretty(pretty string) (article models.Article, err error) {
 	mongo := a.MongoService.Mongo.Copy()
 	defer mongo.Close()
 
 	articleCollection := mongo.Database.C("article")
-	var article models.Article
-	articleCollection.Find(bson.M{"pretty": pretty}).One(&article)
+	err = articleCollection.Find(bson.M{"pretty": pretty}).One(&article)
 
-	return article
+	if err != nil {
+		return article, errors.New("No article")
+	}
+
+	return article, nil
 }
 
 //Add ajoute un nouvel article
-func (a *ArticleService) Add(article models.Article) models.Article {
+func (a *ArticleService) Add(article models.Article) (models.Article, error) {
 	mongo := a.MongoService.Mongo.Copy()
 	defer mongo.Close()
 	id := bson.NewObjectId()
@@ -70,34 +79,60 @@ func (a *ArticleService) Add(article models.Article) models.Article {
 	articleCollection := mongo.Database.C("article")
 	articleCollection.Insert(&models.Article{id, article.Titre, pretty, article.Texte, article.Tags, article.Image, article.Vignette, article.Status, article.Create, article.Create, mgo.DBRef{Collection: "user", Id: article.UserRef.Id}})
 
-	articleCollection.FindId(id).One(&article)
-	return article
+	err := articleCollection.FindId(id).One(&article)
+
+	if err != nil {
+		return models.Article{}, err
+	}
+
+	return article, nil
+}
+
+//FindByStatus retourne les articles d'après leur status
+func (a *ArticleService) FindByStatus(status string) (articles []models.Article, err error) {
+	mongo := a.MongoService.Mongo.Copy()
+	defer mongo.Close()
+
+	articleCollection := mongo.Database.C("article")
+	err = articleCollection.Find(bson.M{"status": status}).All(&articles)
+
+	if err != nil {
+		return articles, errors.New("Error in FindByStatus")
+	}
+
+	return articles, nil
 }
 
 //FindAll retourne tout les articles
-func (a *ArticleService) FindAll() []models.Article {
+func (a *ArticleService) FindAll() (articles []models.Article, err error) {
 	mongo := a.MongoService.Mongo.Copy()
 	defer mongo.Close()
 
 	articleCollection := mongo.Database.C("article")
-	var articles []models.Article
-	articleCollection.Find(nil).All(&articles)
-	return articles
+	err = articleCollection.Find(nil).All(&articles)
+
+	if err != nil {
+		return articles, errors.New("Error in FindAll")
+	}
+
+	return articles, nil
 }
 
 //Delete supprime un article
-func (a *ArticleService) Delete(article models.Article) {
+func (a *ArticleService) Delete(article models.Article) (err error) {
 	mongo := a.MongoService.Mongo.Copy()
 	defer mongo.Close()
 	articleCollection := mongo.Database.C("article")
-	articleCollection.Remove(bson.M{"_id": article.ID, "titre": article.Titre})
+	err = articleCollection.Remove(bson.M{"_id": article.ID, "titre": article.Titre})
+	return
 }
 
 //Update modifie un article existant
-func (a *ArticleService) Update(id string, article models.Article) {
+func (a *ArticleService) Update(id string, article models.Article) (err error) {
 	mongo := a.MongoService.Mongo.Copy()
 	defer mongo.Close()
 	pretty := utils.SanitizeTitle(article.Titre)
 	articleCollection := mongo.Database.C("article")
-	articleCollection.Update(bson.M{"_id": bson.ObjectIdHex(id)}, bson.M{"$set": bson.M{"titre": article.Titre, "pretty": pretty, "image": article.Image, "vignette": article.Vignette, "texte": article.Texte, "status": article.Status, "modified": article.Modified, "tags": article.Tags, "userref": bson.M{"$ref": article.UserRef.Collection, "$id": article.UserRef.Id}}})
+	err = articleCollection.Update(bson.M{"_id": bson.ObjectIdHex(id)}, bson.M{"$set": bson.M{"titre": article.Titre, "pretty": pretty, "image": article.Image, "vignette": article.Vignette, "texte": article.Texte, "status": article.Status, "modified": article.Modified, "tags": article.Tags, "userref": bson.M{"$ref": article.UserRef.Collection, "$id": article.UserRef.Id}}})
+	return
 }

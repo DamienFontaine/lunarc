@@ -23,5 +23,5 @@ staging:
       key: LunarcSecretKey
   mongo:
     port: 27017
-    host: mongo
+    host: 127.0.0.1
     database: test
