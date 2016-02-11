@@ -18,7 +18,10 @@ package lunarc
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"os"
+	"syscall"
 
 	"github.com/DamienFontaine/lunarc/config"
 	"github.com/DamienFontaine/lunarc/datasource"
@@ -27,48 +30,83 @@ import (
 
 //Server is an http.ServeMux with a Context.
 type Server interface {
-	Initialize(string, string) error
 	Start() error
 	Stop()
 	GetContext() Context
-	GetMux() *http.ServeMux
+	GetHandler() *http.ServeMux
 }
 
 //WebServer is a Server with a specialize Context.
 type WebServer struct {
-	Mux     *http.ServeMux
-	Context MongoContext
+	Context   MongoContext
+	server    http.Server
+	quit      chan bool
+	err       chan error
+	interrupt chan os.Signal
 }
 
-//Initialize the server.
-func (ws *WebServer) Initialize(filename string, environment string) (err error) {
+//NewWebServer create a new instance of WebServer
+func NewWebServer(filename string, environment string) (server *WebServer, err error) {
 	var cnf config.Config
-
-	if ws.Mux == nil {
-		ws.Mux = http.NewServeMux()
-	}
-
 	var configUtil = new(utils.ConfigUtil)
 	cnf, err = configUtil.Construct(filename, environment)
+	context := MongoContext{cnf, nil}
 
-	ws.Context = MongoContext{cnf, nil}
-
+	server = &WebServer{Context: context, server: http.Server{Handler: http.NewServeMux()}, quit: make(chan bool), err: make(chan error, 1)}
 	return
 }
 
 //Start the server.
 func (ws *WebServer) Start() (err error) {
 	log.Println("Lunarc is starting...")
-	err = http.ListenAndServe(fmt.Sprintf(":%d", ws.Context.Cnf.Server.Port), ws.Mux)
-	if err != nil {
-		log.Printf("Fatal: %v", err)
+	go func() {
+		l, err := net.Listen("tcp", fmt.Sprintf(":%d", ws.Context.Cnf.Server.Port))
+		if err != nil {
+			log.Printf("Error: %v", err)
+			ws.err <- err
+			return
+		}
+		go ws.handleInterrupt(l)
+		err = ws.server.Serve(l)
+		if err != nil {
+			log.Printf("Error: %v", err)
+			ws.interrupt <- syscall.SIGINT
+			ws.err <- err
+			return
+		}
+	}()
+
+	for {
+		select {
+		case <-ws.quit:
+			ws.interrupt <- syscall.SIGINT
+			return
+		default:
+			//continue
+		}
 	}
-	return err
+}
+
+func (ws *WebServer) handleInterrupt(listener net.Listener) {
+	if ws.interrupt == nil {
+		ws.interrupt = make(chan os.Signal, 1)
+	}
+	<-ws.interrupt
+	listener.Close()
+	ws.quit <- true
+	ws.interrupt = nil
 }
 
 //Stop the server.
 func (ws *WebServer) Stop() {
-	//TODO
+	if ws.interrupt != nil && ws.quit != nil {
+		log.Println("Lunarc is stopping...")
+		ws.quit <- true
+		<-ws.quit
+		log.Println("Lunarc stopped.")
+	} else {
+		log.Println("Lunarc is not running")
+	}
 }
 
 //SetDatasource allow use of datasource. Here MongoDB.
@@ -81,7 +119,7 @@ func (ws *WebServer) GetContext() Context {
 	return MongoContext(ws.Context)
 }
 
-//GetMux return the http.ServeMux of the server.
-func (ws *WebServer) GetMux() *http.ServeMux {
-	return ws.Mux
+//GetHandler return the http.ServeMux of the server.
+func (ws *WebServer) GetHandler() http.Handler {
+	return ws.server.Handler
 }

@@ -16,15 +16,17 @@
 package lunarc
 
 import (
-	"fmt"
+	"net"
 	"net/http"
 	"testing"
 	"time"
 )
 
 func TestInitialize(t *testing.T) {
-	var server = new(WebServer)
-	server.Initialize("config.yml", "test")
+	server, err := NewWebServer("config.yml", "test")
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
+	}
 	if server.GetContext().GetCnf().Server.Port != 8888 {
 		t.Fatalf("Non expected server port: %v != %v", 8888, server.GetContext().GetCnf().Server.Port)
 	}
@@ -34,13 +36,15 @@ func TestInitialize(t *testing.T) {
 }
 
 func TestStart(t *testing.T) {
-	var server = new(WebServer)
-	server.Initialize("config.yml", "test")
+	server, err := NewWebServer("config.yml", "test")
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
+	}
 	go server.Start()
 
 	time.Sleep(time.Second * 3)
 
-	_, err := http.Get("http://localhost:8888/")
+	_, err = http.Get("http://localhost:8888/")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -49,15 +53,49 @@ func TestStart(t *testing.T) {
 }
 
 func TestStartWithError(t *testing.T) {
+	l, err := net.Listen("tcp", ":8888")
+	defer l.Close()
+	go http.Serve(l, nil)
 
-	go http.ListenAndServe(fmt.Sprintf(":%d", 8888), nil)
+	server, _ := NewWebServer("config.yml", "test")
 
-	var server = new(WebServer)
-	server.Initialize("config.yml", "test")
-	err := server.Start()
+	go server.Start()
+
+	err = <-server.err
 
 	if err == nil {
 		t.Fatalf("Expected error: listen tcp :8888: bind: address already in use")
+	}
+}
+
+func TestStopNormal(t *testing.T) {
+	server, err := NewWebServer("config.yml", "test")
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
+	}
+	go server.Start()
+
+	time.Sleep(time.Second * 3)
+
+	_, err = http.Get("http://localhost:8888/")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	server.Stop()
+
+	time.Sleep(time.Second * 3)
+
+	resp, err := http.Get("http://localhost:8888/")
+	if err == nil {
+		t.Fatalf("Error expected: Not Found: %v", resp)
+	}
+}
+
+func TestStopUnstarted(t *testing.T) {
+	server, err := NewWebServer("config.yml", "test")
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
 	}
 
 	server.Stop()
