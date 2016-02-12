@@ -16,6 +16,7 @@
 package lunarc
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -39,9 +40,10 @@ type Server interface {
 //WebServer is a Server with a specialize Context.
 type WebServer struct {
 	Context   MongoContext
+	Error     chan error
+	Done      chan bool
 	server    http.Server
 	quit      chan bool
-	err       chan error
 	interrupt chan os.Signal
 }
 
@@ -52,18 +54,18 @@ func NewWebServer(filename string, environment string) (server *WebServer, err e
 	cnf, err = configUtil.Construct(filename, environment)
 	context := MongoContext{cnf, nil}
 
-	server = &WebServer{Context: context, server: http.Server{Handler: http.NewServeMux()}, quit: make(chan bool), err: make(chan error, 1)}
+	server = &WebServer{Context: context, Done: make(chan bool, 1), Error: make(chan error, 1), server: http.Server{Handler: http.NewServeMux()}, quit: make(chan bool)}
 	return
 }
 
 //Start the server.
 func (ws *WebServer) Start() (err error) {
-	log.Println("Lunarc is starting...")
+	log.Printf("Lunarc is starting on port :%d", ws.Context.Cnf.Server.Port)
 	go func() {
 		l, err := net.Listen("tcp", fmt.Sprintf(":%d", ws.Context.Cnf.Server.Port))
 		if err != nil {
 			log.Printf("Error: %v", err)
-			ws.err <- err
+			ws.Error <- err
 			return
 		}
 		go ws.handleInterrupt(l)
@@ -71,20 +73,14 @@ func (ws *WebServer) Start() (err error) {
 		if err != nil {
 			log.Printf("Error: %v", err)
 			ws.interrupt <- syscall.SIGINT
-			ws.err <- err
+			ws.Error <- err
 			return
 		}
 	}()
 
-	for {
-		select {
-		case <-ws.quit:
-			ws.interrupt <- syscall.SIGINT
-			return
-		default:
-			//continue
-		}
-	}
+	<-ws.quit
+	ws.interrupt <- syscall.SIGINT
+	return
 }
 
 func (ws *WebServer) handleInterrupt(listener net.Listener) {
@@ -104,8 +100,10 @@ func (ws *WebServer) Stop() {
 		ws.quit <- true
 		<-ws.quit
 		log.Println("Lunarc stopped.")
+		ws.Done <- true
 	} else {
 		log.Println("Lunarc is not running")
+		ws.Error <- errors.New("Lunarc is not running")
 	}
 }
 
