@@ -33,7 +33,7 @@ type Server interface {
 	Start() error
 	Stop()
 	GetContext() Context
-	GetHandler() *http.ServeMux
+	GetHandler() http.Handler
 }
 
 //WebServer is a Server with a specialize Context.
