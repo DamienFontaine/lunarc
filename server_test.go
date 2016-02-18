@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-func TestInitialize(t *testing.T) {
+func TestNewWebServer(t *testing.T) {
 	server, err := NewWebServer("config.yml", "test")
 	if err != nil {
 		t.Fatalf("Non expected error: %v", err)
@@ -55,6 +55,9 @@ func TestStart(t *testing.T) {
 
 func TestStartWithError(t *testing.T) {
 	l, err := net.Listen("tcp", ":8888")
+	if err != nil {
+		t.Fatalf("Error during test preparation : %v", err)
+	}
 	defer l.Close()
 	go http.Serve(l, nil)
 
