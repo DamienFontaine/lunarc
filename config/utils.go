@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package utils
+package config
 
 import (
 	"errors"
@@ -21,19 +21,10 @@ import (
 	"log"
 
 	"gopkg.in/yaml.v2"
-
-	"github.com/DamienFontaine/lunarc/config"
 )
 
-var util ConfigUtil
-
-//ConfigUtil helps to manipulate config.Config
-type ConfigUtil struct{}
-
-// Construct a config.Config
-func (cu *ConfigUtil) Construct(source interface{}, environment string) (conf config.Config, err error) {
-	var environmentConfig config.EnvironmentConfig
-
+// Get a config
+func Get(source interface{}, environment string, configEnv Environment) (conf interface{}, err error) {
 	if filename, ok := source.(string); ok {
 		source, err = ioutil.ReadFile(filename)
 		if err != nil {
@@ -42,27 +33,15 @@ func (cu *ConfigUtil) Construct(source interface{}, environment string) (conf co
 		}
 	}
 
-	err = yaml.Unmarshal(source.([]byte), &environmentConfig)
+	err = yaml.Unmarshal(source.([]byte), configEnv)
 	if err != nil {
 		log.Printf("Fatal: bad config : %v", err)
 		return
 	}
 
-	environmentConfig.GetEnvironment(&conf, environment)
-	if &conf == nil {
+	conf = configEnv.GetEnvironment(environment)
+	if conf == nil {
 		err = errors.New("No configuration")
-		return
-	}
-
-	if conf.Mongo.Port == 0 {
-		log.Printf("Server Mongo misconfigured")
-		err = errors.New("Server Mongo misconfigured")
-		return
-	}
-
-	if conf.Server.Port == 0 {
-		log.Printf("Server misconfigured")
-		err = errors.New("Server misconfigured")
 		return
 	}
 	return

@@ -13,20 +13,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package config
+package datasource
 
-//Config du Server
-type Config struct {
-	Server struct {
-		Port int
-		URL  string
-		Jwt  struct {
-			Key string
-		}
-	}
-	Mongo struct {
-		Port     int
-		Host     string
-		Database string
-	}
+import (
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	os.Chdir("../testdata")
+	os.Exit(m.Run())
 }

@@ -16,13 +16,12 @@
 package config
 
 import (
-	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v2"
 )
 
-func TestGetEnvironmentNormal(t *testing.T) {
+func TestGetMongoEnvironmentNormal(t *testing.T) {
 	var data = `
   development:
     server:
@@ -52,75 +51,57 @@ func TestGetEnvironmentNormal(t *testing.T) {
       host: mongo
       database: test
   `
-	var environmentConfig EnvironmentConfig
-	err := yaml.Unmarshal([]byte(data), &environmentConfig)
+
+	var mongoEnvironment MongoEnvironment
+	err := yaml.Unmarshal([]byte(data), &mongoEnvironment)
 	if err != nil {
 		t.Fatalf("Non expected error %v", err)
 	}
-	var production Config
-	if environmentConfig.GetEnvironment(&production, "production"); &production == nil {
-		t.Fatalf("Must return a config.Config for production environment")
+	if len(mongoEnvironment.Env) != 3 {
+		t.Fatalf("Must return 3 environments but %v", len(mongoEnvironment.Env))
 	}
-
-	if production.Mongo.Port != 27017 {
+	var production Mongo
+	res := mongoEnvironment.GetEnvironment("production")
+	if res == nil {
+		t.Fatalf("Must return a Mongo for production environment")
+	}
+	production = res.(Mongo)
+	if production.Port != 27017 {
 		t.Fatalf("Must return a mongo port")
-	}
-
-	var dev Config
-	if environmentConfig.GetEnvironment(&dev, "dev"); &dev == nil {
-		t.Fatalf("Musn't return a config.Config for dev")
 	}
 }
 
-func TestUnmarshalYAMLNormal(t *testing.T) {
+func TestMongoEnvironment(t *testing.T) {
 	var data = `
   development:
-    server:
-      port: 8888
-      jwt:
-        key: LunarcSecretKey
-    mongo:
-      port: 27017
-      host: localhost
-      database: test
-  test:
-    server:
-      port: 8888
-      jwt:
-        key: LunarcSecretKey
-    mongo:
-      port: 27017
-      host: mongo
-      database: test
-  production:
-    server:
-      port: 8888
-      jwt:
-        key: LunarcSecretKey
     mongo:
       port: 27017
       host: mongo
       database: test
   `
-	var environmentConfig EnvironmentConfig
-	err := yaml.Unmarshal([]byte(data), &environmentConfig)
+	var mongoEnvironment MongoEnvironment
+	_ = yaml.Unmarshal([]byte(data), &mongoEnvironment)
+	var i interface{} = &mongoEnvironment
+	_, ok := i.(Environment)
+
+	if !ok {
+		t.Fatalf("MongoEnvironment must implement Environment")
+	}
+}
+
+func TestGetMongoNormal(t *testing.T) {
+	var data = `
+  development:
+    mongo:
+      port: 27017
+      host: mongo
+      database: test
+  `
+	mongo, err := GetMongo([]byte(data), "development")
 	if err != nil {
 		t.Fatalf("Non expected error %v", err)
 	}
-
-	if len(environmentConfig.Env) != 3 {
-		t.Fatalf("Not enought configuration: %v in place of 2", len(environmentConfig.Env))
-	}
-
-	var dev Config
-	dev = environmentConfig.Env["development"]
-	if strings.Compare(dev.Mongo.Host, "localhost") != 0 {
-		t.Fatalf("Dev Mongo Host: %v in place of localhost", dev.Mongo.Host)
-	}
-
-	var test Config
-	test = environmentConfig.Env["test"]
-	if strings.Compare(test.Mongo.Host, "mongo") != 0 {
-		t.Fatalf("Test Mongo Host: %v in place of mongo", test.Mongo.Host)
+	if mongo.Port != 27017 {
+		t.Fatalf("Must return a Mongo with Port 27017 not %v", mongo.Port)
 	}
 }

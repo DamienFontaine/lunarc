@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package utils
+package config
 
 import "testing"
 
@@ -47,57 +47,15 @@ func TestConstructWithNormalByte(t *testing.T) {
       host: mongo
       database: test`
 
-	var util ConfigUtil
-	config, err := util.Construct([]byte(data), "test")
-	if config.Server.Port != 8888 {
-		t.Fatalf("Non expected server port: %v != %v", 8888, config.Server.Port)
+	var serverEnvironment ServerEnvironment
+	i, err := Get([]byte(data), "test", &serverEnvironment)
+	server := i.(Server)
+	if server.Port != 8888 {
+		t.Fatalf("Non expected server port: %v != %v", 8888, server.Port)
 	}
 
 	if err != nil {
 		t.Fatalf("Non expected error: %v", err)
-	}
-}
-
-func TestConstructWithEmptyMongo(t *testing.T) {
-	var data = `test:
-  server:
-    port: 8888
-    jwt:
-      key: LunarcSecretKey`
-
-	var util ConfigUtil
-	config, err := util.Construct([]byte(data), "test")
-
-	if config.Server.Port != 8888 {
-		t.Fatalf("Non expected server port: %v != %v", 8888, config.Server.Port)
-	}
-
-	if config.Mongo.Port != 0 {
-		t.Fatalf("Non expected server port: %v != %v", 0, config.Mongo.Port)
-	}
-
-	if err == nil {
-		t.Fatalf("Expected error: %v", err)
-	}
-}
-
-func TestConstructWithEmptyServer(t *testing.T) {
-	var data = `
-  mongo:
-    port: 27017
-    host: localhost
-    database: test
-  `
-
-	var util ConfigUtil
-	config, err := util.Construct([]byte(data), "test")
-
-	if config.Server.Port != 0 {
-		t.Fatalf("Non expected server port: %v != %v", 0, config.Server.Port)
-	}
-
-	if err == nil {
-		t.Fatalf("Expected error: %v", err)
 	}
 }
 
@@ -109,8 +67,8 @@ func TestConstructWithBadByte(t *testing.T) {
     "database": test
   `
 
-	var util ConfigUtil
-	_, err := util.Construct([]byte(data), "test")
+	var mongoEnvironment MongoEnvironment
+	_, err := Get([]byte(data), "test", &mongoEnvironment)
 
 	if err == nil {
 		t.Fatalf("Expected error: %v", err)
@@ -118,11 +76,11 @@ func TestConstructWithBadByte(t *testing.T) {
 }
 
 func TestConstructWithNormalFile(t *testing.T) {
-	var util ConfigUtil
-	config, err := util.Construct("config.yml", "test")
-
-	if config.Server.Port != 8888 {
-		t.Fatalf("Non expected server port: %v != %v", 8888, config.Server.Port)
+	var mongoEnvironment MongoEnvironment
+	i, err := Get("config.yml", "test", &mongoEnvironment)
+	mongo := i.(Mongo)
+	if mongo.Port != 27017 {
+		t.Fatalf("Non expected server port: %v != %v", 8888, mongo.Port)
 	}
 
 	if err != nil {
@@ -131,8 +89,8 @@ func TestConstructWithNormalFile(t *testing.T) {
 }
 
 func TestConstructWithNonExistentFile(t *testing.T) {
-	var util ConfigUtil
-	_, err := util.Construct("no-config.yml", "test")
+	var mongoEnvironment MongoEnvironment
+	_, err := Get("no-config.yml", "test", &mongoEnvironment)
 
 	if err == nil {
 		t.Fatalf("Expected error!")

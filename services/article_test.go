@@ -29,12 +29,8 @@ import (
 var articleService ArticleService
 
 func BeforeEach() {
-	var configUtil = new(utils.ConfigUtil)
-	cnf, _ := configUtil.Construct("config.yml", "staging")
-
-	session := datasource.GetSession(cnf.Mongo.Port, cnf.Mongo.Host)
-	mongo := datasource.Mongo{Session: session, Database: session.DB(cnf.Mongo.Database)}
-	articleService = ArticleService{MongoService: MongoService{Mongo: mongo}}
+	mongo, _ := datasource.NewMongo("config.yml", "staging")
+	articleService = ArticleService{MongoService: MongoService{Mongo: *mongo}}
 }
 
 func TestArticleService(t *testing.T) {

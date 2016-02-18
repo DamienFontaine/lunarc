@@ -15,22 +15,32 @@
 
 package datasource
 
-import "gopkg.in/mgo.v2"
+import (
+	"log"
 
-//GetSession retourne une session MongoDB.
-func GetSession(port int, host string) *mgo.Session {
-	session, err := mgo.Dial(host)
-	if err != nil {
-		panic(err)
-	}
-	session.SetMode(mgo.Monotonic, true)
-	return session
-}
+	"github.com/DamienFontaine/lunarc/config"
+	"gopkg.in/mgo.v2"
+)
 
 //Mongo is a datasource.
 type Mongo struct {
 	Session  *mgo.Session
 	Database *mgo.Database
+}
+
+//NewMongo creates a newinstance of Mongo
+func NewMongo(filename string, environment string) (*Mongo, error) {
+	cnf, err := config.GetMongo(filename, environment)
+	if err != nil {
+		return nil, err
+	}
+	session, err := mgo.Dial(cnf.Host)
+	if err != nil {
+		log.Printf("Impossible de contacter %v sur le port %d", cnf.Host, cnf.Port)
+		return nil, err
+	}
+	session.SetMode(mgo.Monotonic, true)
+	return &Mongo{Session: session, Database: session.DB(cnf.Database)}, nil
 }
 
 //Copy retourne une cope de la session

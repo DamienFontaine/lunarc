@@ -25,44 +25,38 @@ import (
 	"syscall"
 
 	"github.com/DamienFontaine/lunarc/config"
-	"github.com/DamienFontaine/lunarc/datasource"
-	"github.com/DamienFontaine/lunarc/utils"
 )
 
 //Server is an http.ServeMux with a Context.
 type Server interface {
 	Start() error
 	Stop()
-	GetContext() Context
 	GetHandler() http.Handler
+	GetConfig() config.Server
 }
 
 //WebServer is a Server with a specialize Context.
 type WebServer struct {
-	Context   MongoContext
 	Error     chan error
 	Done      chan bool
 	server    http.Server
 	quit      chan bool
 	interrupt chan os.Signal
+	conf      config.Server
 }
 
 //NewWebServer create a new instance of WebServer
 func NewWebServer(filename string, environment string) (server *WebServer, err error) {
-	var cnf config.Config
-	var configUtil = new(utils.ConfigUtil)
-	cnf, err = configUtil.Construct(filename, environment)
-	context := MongoContext{cnf, nil}
-
-	server = &WebServer{Context: context, Done: make(chan bool, 1), Error: make(chan error, 1), server: http.Server{Handler: http.NewServeMux()}, quit: make(chan bool)}
+	conf, err := config.GetServer(filename, environment)
+	server = &WebServer{conf: conf, Done: make(chan bool, 1), Error: make(chan error, 1), server: http.Server{Handler: http.NewServeMux()}, quit: make(chan bool)}
 	return
 }
 
 //Start the server.
 func (ws *WebServer) Start() (err error) {
-	log.Printf("Lunarc is starting on port :%d", ws.Context.Cnf.Server.Port)
+	log.Printf("Lunarc is starting on port :%d", ws.conf.Port)
 	go func() {
-		l, err := net.Listen("tcp", fmt.Sprintf(":%d", ws.Context.Cnf.Server.Port))
+		l, err := net.Listen("tcp", fmt.Sprintf(":%d", ws.conf.Port))
 		if err != nil {
 			log.Printf("Error: %v", err)
 			ws.Error <- err
@@ -107,17 +101,12 @@ func (ws *WebServer) Stop() {
 	}
 }
 
-//SetDatasource allow use of datasource. Here MongoDB.
-func (ws *WebServer) SetDatasource() {
-	ws.Context.Session = datasource.GetSession(ws.Context.Cnf.Mongo.Port, ws.Context.Cnf.Mongo.Host)
-}
-
-//GetContext returns the Context of the server.
-func (ws *WebServer) GetContext() Context {
-	return MongoContext(ws.Context)
-}
-
 //GetHandler return the http.ServeMux of the server.
 func (ws *WebServer) GetHandler() http.Handler {
 	return ws.server.Handler
+}
+
+//GetConfig return the configuration of the server.
+func (ws *WebServer) GetConfig() config.Server {
+	return ws.conf
 }

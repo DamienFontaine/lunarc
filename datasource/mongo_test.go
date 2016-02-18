@@ -1,3 +1,5 @@
+// +build integration
+
 // Copyright (c) - Damien Fontaine <damien.fontaine@lineolia.net>
 //
 // This program is free software: you can redistribute it and/or modify
@@ -13,36 +15,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package lunarc
+package datasource
 
-import (
-	"gopkg.in/mgo.v2"
+import "testing"
 
-	"github.com/DamienFontaine/lunarc/config"
-)
-
-//Context of a Server
-type Context interface {
-	GetCnf() config.Config
-}
-
-//DefaultContext DefaultContext
-type DefaultContext struct {
-	Cnf config.Config
-}
-
-//GetCnf returns config.Config
-func (dc DefaultContext) GetCnf() config.Config {
-	return dc.Cnf
-}
-
-//MongoContext add Mongo session to a Context
-type MongoContext struct {
-	Cnf     config.Config
-	Session *mgo.Session
-}
-
-//GetCnf returns config.Config
-func (mc MongoContext) GetCnf() config.Config {
-	return mc.Cnf
+func TestNewMongoNormal(t *testing.T) {
+	mongo, err := NewMongo("config.yml", "staging")
+	if err != nil {
+		t.Fatalf("NewMongo must realize a success connection but %v", err)
+	}
+	if mongo.Session == nil {
+		t.Fatalf("NewMongo must have a session")
+	}
 }

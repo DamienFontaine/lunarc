@@ -15,24 +15,7 @@
 
 package config
 
-import "strings"
-
-//EnvironmentConfig contains all configs
-type EnvironmentConfig struct {
-	Env map[string]Config
-}
-
-//UnmarshalYAML implements Unmarshaler. Avoid use of env in the YAML file.
-func (ec *EnvironmentConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	return unmarshal(&ec.Env)
-}
-
-//GetEnvironment returns a config.Config for the specified environment in parameter
-func (ec *EnvironmentConfig) GetEnvironment(config *Config, environment string) {
-	for env, conf := range ec.Env {
-		if strings.Compare(environment, env) == 0 {
-			*config = conf
-		}
-	}
-	config = nil
+//Environment contains all configs
+type Environment interface {
+	GetEnvironment(string) interface{}
 }

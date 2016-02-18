@@ -24,18 +24,13 @@ import (
 
 	"github.com/DamienFontaine/lunarc/datasource"
 	"github.com/DamienFontaine/lunarc/models"
-	"github.com/DamienFontaine/lunarc/utils"
 )
 
 var userService UserService
 
 func UserBeforeEach() {
-	var configUtil = new(utils.ConfigUtil)
-	cnf, _ := configUtil.Construct("config.yml", "staging")
-
-	session := datasource.GetSession(cnf.Mongo.Port, cnf.Mongo.Host)
-	mongo := datasource.Mongo{Session: session, Database: session.DB(cnf.Mongo.Database)}
-	userService = UserService{MongoService: MongoService{Mongo: mongo}}
+	mongo, _ := datasource.NewMongo("config.yml", "staging")
+	userService = UserService{MongoService: MongoService{Mongo: *mongo}}
 }
 
 func TestUserService(t *testing.T) {

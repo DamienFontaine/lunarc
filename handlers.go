@@ -25,14 +25,14 @@ import (
 )
 
 //AuthMiddleWare manage authorizations
-func AuthMiddleWare(next http.Handler, cnf config.Config) http.Handler {
+func AuthMiddleWare(next http.Handler, cnf config.Server) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, err := jwt.ParseFromRequest(r, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				//TODO: On ne passe jamais à l'intérieur
 				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 			}
-			return []byte(cnf.Server.Jwt.Key), nil
+			return []byte(cnf.Jwt.Key), nil
 		})
 		if err == nil && token.Valid {
 			next.ServeHTTP(w, r)

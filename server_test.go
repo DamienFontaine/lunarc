@@ -27,11 +27,11 @@ func TestInitialize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Non expected error: %v", err)
 	}
-	if server.GetContext().GetCnf().Server.Port != 8888 {
-		t.Fatalf("Non expected server port: %v != %v", 8888, server.GetContext().GetCnf().Server.Port)
+	if server.conf.Port != 8888 {
+		t.Fatalf("Non expected server port: %v != %v", 8888, server.conf.Port)
 	}
-	if server.GetContext().GetCnf().Server.Jwt.Key != "LunarcSecretKey" {
-		t.Fatalf("Non expected server Jwt secret key: %v != %v", "LunarcSecretKey", server.GetContext().GetCnf().Server.Port)
+	if server.conf.Jwt.Key != "LunarcSecretKey" {
+		t.Fatalf("Non expected server Jwt secret key: %v != %v", "LunarcSecretKey", server.conf.Port)
 	}
 }
 
