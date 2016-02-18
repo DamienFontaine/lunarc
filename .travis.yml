@@ -14,7 +14,7 @@ before_script:
 script:
   - go test -coverprofile=config.coverprofile ./config
   - go test -coverprofile=controllers.coverprofile ./controllers
-  - go test -coverprofile=datasource.coverprofile ./datasource
+  - go test -tags=integration -coverprofile=datasource.coverprofile ./datasource
   - go test -coverprofile=models.coverprofile ./models
   - go test -tags=integration -coverprofile=services.coverprofile ./services
   - go test -coverprofile=utils.coverprofile ./utils
