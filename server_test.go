@@ -70,6 +70,7 @@ func TestStartWithError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error: listen tcp :8888: bind: address already in use")
 	}
+	time.Sleep(time.Second * 1)
 }
 
 func TestStopNormal(t *testing.T) {
@@ -79,7 +80,7 @@ func TestStopNormal(t *testing.T) {
 	}
 	go server.Start()
 
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 2)
 
 	_, err = http.Get("http://localhost:8888/")
 	if err != nil {
@@ -93,6 +94,13 @@ func TestStopNormal(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Error expected: Not Found: %v", resp)
 	}
+
+	l, err := net.Listen("tcp", ":8888")
+	if err != nil {
+		t.Fatalf("Error : %v", err)
+	}
+	defer l.Close()
+	go http.Serve(l, nil)
 }
 
 func TestStopUnstarted(t *testing.T) {
@@ -104,8 +112,10 @@ func TestStopUnstarted(t *testing.T) {
 	go server.Stop()
 
 	select {
-	case <-server.Done:
-		t.Fatalf("Non expected behavior")
+	case result := <-server.Done:
+		if result {
+			t.Fatalf("Non expected behavior")
+		}
 	case err := <-server.Error:
 		if err == nil {
 			t.Fatalf("Non expected error")

@@ -37,12 +37,13 @@ type Server interface {
 
 //WebServer is a Server with a specialize Context.
 type WebServer struct {
-	Error     chan error
-	Done      chan bool
-	server    http.Server
-	quit      chan bool
-	interrupt chan os.Signal
-	conf      config.Server
+	Error       chan error
+	Done        chan bool
+	server      http.Server
+	quit        chan bool
+	interrupt   chan os.Signal
+	conf        config.Server
+	connections map[net.Conn]http.ConnState
 }
 
 //NewWebServer create a new instance of WebServer
@@ -62,12 +63,29 @@ func (ws *WebServer) Start() (err error) {
 			ws.Error <- err
 			return
 		}
-		go ws.handleInterrupt(l)
+		// Track connection state
+		add := make(chan net.Conn)
+		idle := make(chan net.Conn)
+		remove := make(chan net.Conn)
+
+		ws.server.ConnState = func(conn net.Conn, state http.ConnState) {
+			switch state {
+			case http.StateNew:
+				add <- conn
+			case http.StateIdle:
+				idle <- conn
+			case http.StateClosed, http.StateHijacked:
+				remove <- conn
+			}
+		}
+
+		shutdown := make(chan chan struct{})
+		go ws.handleConnections(add, idle, remove, shutdown)
+		go ws.handleInterrupt(l, shutdown)
+
 		err = ws.server.Serve(l)
 		if err != nil {
-			log.Printf("Error: %v", err)
-			ws.interrupt <- syscall.SIGINT
-			ws.Error <- err
+			ws.Done <- true
 			return
 		}
 	}()
@@ -77,12 +95,53 @@ func (ws *WebServer) Start() (err error) {
 	return
 }
 
-func (ws *WebServer) handleInterrupt(listener net.Listener) {
+func (ws *WebServer) handleConnections(add, idle, remove chan net.Conn, shutdown chan chan struct{}) {
+	var done chan struct{}
+	ws.connections = map[net.Conn]http.ConnState{}
+	for {
+		select {
+		case conn := <-add:
+			ws.connections[conn] = http.StateNew
+		case conn := <-remove:
+			delete(ws.connections, conn)
+			if done != nil && len(ws.connections) == 0 {
+				done <- struct{}{}
+				return
+			}
+		case conn := <-idle:
+			ws.connections[conn] = http.StateIdle
+			if done != nil {
+				conn.Close()
+				if len(ws.connections) == 0 {
+					done <- struct{}{}
+				}
+			}
+		case done = <-shutdown:
+			for k, v := range ws.connections {
+				if v == http.StateIdle {
+					k.Close()
+					delete(ws.connections, k)
+				}
+			}
+			if len(ws.connections) == 0 {
+				done <- struct{}{}
+			}
+			return
+		}
+	}
+}
+
+func (ws *WebServer) handleInterrupt(listener net.Listener, shutdown chan chan struct{}) {
 	if ws.interrupt == nil {
 		ws.interrupt = make(chan os.Signal, 1)
 	}
 	<-ws.interrupt
+	ws.server.SetKeepAlivesEnabled(false)
+	done := make(chan struct{})
+	shutdown <- done
+	<-done
 	listener.Close()
+	listener = nil
 	ws.quit <- true
 	ws.interrupt = nil
 }
@@ -93,11 +152,13 @@ func (ws *WebServer) Stop() {
 		log.Println("Lunarc is stopping...")
 		ws.quit <- true
 		<-ws.quit
+		<-ws.Done
 		log.Println("Lunarc stopped.")
 		ws.Done <- true
 	} else {
 		log.Println("Lunarc is not running")
 		ws.Error <- errors.New("Lunarc is not running")
+		ws.Done <- false
 	}
 }
 
