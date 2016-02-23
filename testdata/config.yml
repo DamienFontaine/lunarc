@@ -7,6 +7,18 @@ test:
     port: 27017
     host: mongo
     database: test
+ssl:
+  server:
+    port: 8888
+    ssl:
+      certificate: ./ssl/test.crt
+      key: ./ssl/test.key
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: mongo
+    database: test
 development:
   server:
     port: 8888
@@ -15,6 +27,30 @@ development:
   mongo:
     port: 27017
     host: localhost
+    database: test
+nokeyssl:
+  server:
+    port: 8888
+    ssl:
+      certificate: ./ssl/test.crt
+      key: ./ssl/NoKey.key
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: mongo
+    database: test
+nocertssl:
+  server:
+    port: 8888
+    ssl:
+      certificate: ./ssl/NoCert.crt
+      key: ./ssl/test.key
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: mongo
     database: test
 staging:
   server:

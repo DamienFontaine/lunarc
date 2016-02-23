@@ -16,6 +16,7 @@
 package lunarc
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log"
@@ -57,12 +58,36 @@ func NewWebServer(filename string, environment string) (server *WebServer, err e
 func (ws *WebServer) Start() (err error) {
 	log.Printf("Lunarc is starting on port :%d", ws.conf.Port)
 	go func() {
-		l, err := net.Listen("tcp", fmt.Sprintf(":%d", ws.conf.Port))
-		if err != nil {
-			log.Printf("Error: %v", err)
-			ws.Error <- err
-			return
+		var l net.Listener
+		if len(ws.conf.SSL.Certificate) > 0 && len(ws.conf.SSL.Key) > 0 {
+
+			config := tls.Config{
+				ClientAuth: tls.RequireAndVerifyClientCert,
+			}
+
+			config.Certificates = make([]tls.Certificate, 1)
+			config.Certificates[0], err = tls.LoadX509KeyPair(ws.conf.SSL.Certificate, ws.conf.SSL.Key)
+			if err != nil {
+				log.Printf("Error: %v", err)
+				ws.Error <- err
+				return
+			}
+
+			l, err = tls.Listen("tcp", fmt.Sprintf(":%d", ws.conf.Port), &config)
+			if err != nil {
+				log.Printf("Error: %v", err)
+				ws.Error <- err
+				return
+			}
+		} else {
+			l, err = net.Listen("tcp", fmt.Sprintf(":%d", ws.conf.Port))
+			if err != nil {
+				log.Printf("Error: %v", err)
+				ws.Error <- err
+				return
+			}
 		}
+
 		// Track connection state
 		add := make(chan net.Conn)
 		idle := make(chan net.Conn)

@@ -16,6 +16,7 @@
 package lunarc
 
 import (
+	"crypto/tls"
 	"net"
 	"net/http"
 	"testing"
@@ -53,6 +54,58 @@ func TestStart(t *testing.T) {
 	<-server.Done
 }
 
+func TestStartWithSSLNormal(t *testing.T) {
+	server, err := NewWebServer("config.yml", "ssl")
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
+	}
+
+	go server.Start()
+
+	time.Sleep(time.Second * 3)
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+
+	_, err = client.Get("https://localhost.daplie.com")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	go server.Stop()
+	<-server.Done
+}
+
+func TestStartWithSSLNoCertError(t *testing.T) {
+	server, err := NewWebServer("config.yml", "nocertssl")
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
+	}
+
+	go server.Start()
+
+	err = <-server.Error
+	if err == nil {
+		t.Fatalf("Expected error: Le fichier spécifié est introuvable")
+	}
+}
+
+func TestStartWithSSLNoKeyError(t *testing.T) {
+	server, err := NewWebServer("config.yml", "nokeyssl")
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
+	}
+
+	go server.Start()
+
+	err = <-server.Error
+	if err == nil {
+		t.Fatalf("Expected error: Le fichier spécifié est introuvable")
+	}
+}
+
 func TestStartWithError(t *testing.T) {
 	l, err := net.Listen("tcp", ":8888")
 	if err != nil {
@@ -62,6 +115,26 @@ func TestStartWithError(t *testing.T) {
 	go http.Serve(l, nil)
 
 	server, _ := NewWebServer("config.yml", "test")
+
+	go server.Start()
+
+	err = <-server.Error
+
+	if err == nil {
+		t.Fatalf("Expected error: listen tcp :8888: bind: address already in use")
+	}
+	time.Sleep(time.Second * 1)
+}
+
+func TestStartWithSSLAndError(t *testing.T) {
+	l, err := net.Listen("tcp", ":8888")
+	if err != nil {
+		t.Fatalf("Error during test preparation : %v", err)
+	}
+	defer l.Close()
+	go http.Serve(l, nil)
+
+	server, _ := NewWebServer("config.yml", "ssl")
 
 	go server.Start()
 
