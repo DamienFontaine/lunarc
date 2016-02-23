@@ -19,6 +19,9 @@ development:
 staging:
   server:
     port: 8888
+    ssl:
+      key: my.key
+      certificate: my.crt
     jwt:
       key: LunarcSecretKey
   mongo:

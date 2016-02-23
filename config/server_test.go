@@ -16,6 +16,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v2"
@@ -44,6 +45,10 @@ func TestGetServerEnvironmentNormal(t *testing.T) {
   production:
     server:
       port: 8888
+      url: 127.0.0.1
+      ssl:
+        key: my.key
+        certificate: my.crt
       jwt:
         key: LunarcSecretKey
     mongo:
@@ -68,6 +73,18 @@ func TestGetServerEnvironmentNormal(t *testing.T) {
 	production = res.(Server)
 	if production.Port != 8888 {
 		t.Fatalf("Must return a server port")
+	}
+	if strings.Compare(production.URL, "127.0.0.1") != 0 {
+		t.Fatalf("Must return a server URL")
+	}
+	if strings.Compare(production.SSL.Certificate, "my.crt") != 0 {
+		t.Fatalf("Must return a SSL certificate")
+	}
+	if strings.Compare(production.SSL.Key, "my.key") != 0 {
+		t.Fatalf("Must return a SSL key")
+	}
+	if strings.Compare(production.Jwt.Key, "LunarcSecretKey") != 0 {
+		t.Fatalf("Must return a JWT keyL")
 	}
 }
 

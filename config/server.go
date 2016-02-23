@@ -21,7 +21,11 @@ import "strings"
 type Server struct {
 	Port int
 	URL  string
-	Jwt  struct {
+	SSL  struct {
+		Key         string
+		Certificate string
+	}
+	Jwt struct {
 		Key string
 	}
 }
