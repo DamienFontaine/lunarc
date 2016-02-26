@@ -8,6 +8,8 @@
 
 ``` sh
 $ go get github.com/DamienFontaine/lunarc
+$ cd $GOPATH/src/github.com/DamienFontaine/lunarc
+$ godep restore
 ```
 
 ## License
