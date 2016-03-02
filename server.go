@@ -25,6 +25,8 @@ import (
 	"os"
 	"syscall"
 
+	"golang.org/x/net/http2"
+
 	"github.com/DamienFontaine/lunarc/config"
 )
 
@@ -59,37 +61,17 @@ func (ws *WebServer) Start() (err error) {
 	log.Printf("Lunarc is starting on port :%d", ws.conf.Port)
 	go func() {
 		var l net.Listener
-		if len(ws.conf.SSL.Certificate) > 0 && len(ws.conf.SSL.Key) > 0 {
 
-			config := tls.Config{
-				ClientAuth: tls.RequireAndVerifyClientCert,
-			}
-
-			config.Certificates = make([]tls.Certificate, 1)
-			config.Certificates[0], err = tls.LoadX509KeyPair(ws.conf.SSL.Certificate, ws.conf.SSL.Key)
-			if err != nil {
-				log.Printf("Error: %v", err)
-				ws.Error <- err
-				return
-			}
-
-			l, err = tls.Listen("tcp", fmt.Sprintf(":%d", ws.conf.Port), &config)
-			if err != nil {
-				log.Printf("Error: %v", err)
-				ws.Error <- err
-				return
-			}
-		} else {
-			l, err = net.Listen("tcp", fmt.Sprintf(":%d", ws.conf.Port))
-			if err != nil {
-				log.Printf("Error: %v", err)
-				ws.Error <- err
-				return
-			}
+		l, err = net.Listen("tcp", fmt.Sprintf(":%d", ws.conf.Port))
+		if err != nil {
+			log.Printf("Error: %v", err)
+			ws.Error <- err
+			return
 		}
 
 		// Track connection state
 		add := make(chan net.Conn)
+		active := make(chan net.Conn)
 		idle := make(chan net.Conn)
 		remove := make(chan net.Conn)
 
@@ -97,6 +79,8 @@ func (ws *WebServer) Start() (err error) {
 			switch state {
 			case http.StateNew:
 				add <- conn
+			case http.StateActive:
+				active <- conn
 			case http.StateIdle:
 				idle <- conn
 			case http.StateClosed, http.StateHijacked:
@@ -105,13 +89,41 @@ func (ws *WebServer) Start() (err error) {
 		}
 
 		shutdown := make(chan chan struct{})
-		go ws.handleConnections(add, idle, remove, shutdown)
+		go ws.handleConnections(add, active, idle, remove, shutdown)
 		go ws.handleInterrupt(l, shutdown)
 
-		err = ws.server.Serve(l)
-		if err != nil {
-			ws.Done <- true
-			return
+		if len(ws.conf.SSL.Certificate) > 0 && len(ws.conf.SSL.Key) > 0 {
+			config := tls.Config{}
+
+			config.Certificates = make([]tls.Certificate, 1)
+			config.Certificates[0], err = tls.LoadX509KeyPair(ws.conf.SSL.Certificate, ws.conf.SSL.Key)
+			if err != nil {
+				log.Printf("Error: %v", err)
+				l.Close()
+				ws.Error <- err
+				return
+			}
+
+			ws.server.TLSConfig = &config
+
+			err = http2.ConfigureServer(&ws.server, nil)
+			if err != nil {
+				log.Printf("Error: %v", err)
+				l.Close()
+				ws.Error <- err
+				return
+			}
+			err = ws.server.Serve(tls.NewListener(l, &config))
+			if err != nil {
+				close(ws.quit)
+				return
+			}
+		} else {
+			err = ws.server.Serve(l)
+			if err != nil {
+				close(ws.quit)
+				return
+			}
 		}
 	}()
 
@@ -120,13 +132,15 @@ func (ws *WebServer) Start() (err error) {
 	return
 }
 
-func (ws *WebServer) handleConnections(add, idle, remove chan net.Conn, shutdown chan chan struct{}) {
+func (ws *WebServer) handleConnections(add, active, idle, remove chan net.Conn, shutdown chan chan struct{}) {
 	var done chan struct{}
 	ws.connections = map[net.Conn]http.ConnState{}
 	for {
 		select {
 		case conn := <-add:
 			ws.connections[conn] = http.StateNew
+		case conn := <-active:
+			ws.connections[conn] = http.StateActive
 		case conn := <-remove:
 			delete(ws.connections, conn)
 			if done != nil && len(ws.connections) == 0 {
@@ -162,13 +176,18 @@ func (ws *WebServer) handleInterrupt(listener net.Listener, shutdown chan chan s
 	}
 	<-ws.interrupt
 	ws.server.SetKeepAlivesEnabled(false)
+	err := listener.Close()
+	if err != nil {
+		log.Printf("Error on listener close: %v", err)
+	}
+	<-ws.quit
 	done := make(chan struct{})
 	shutdown <- done
 	<-done
-	listener.Close()
 	listener = nil
-	ws.quit <- true
 	ws.interrupt = nil
+	log.Println("Lunarc terminated.")
+	ws.Done <- true
 }
 
 //Stop the server.
@@ -176,10 +195,6 @@ func (ws *WebServer) Stop() {
 	if ws.interrupt != nil && ws.quit != nil {
 		log.Println("Lunarc is stopping...")
 		ws.quit <- true
-		<-ws.quit
-		<-ws.Done
-		log.Println("Lunarc stopped.")
-		ws.Done <- true
 	} else {
 		log.Println("Lunarc is not running")
 		ws.Error <- errors.New("Lunarc is not running")
