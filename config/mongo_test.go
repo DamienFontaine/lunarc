@@ -16,6 +16,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v2"
@@ -32,6 +33,9 @@ func TestGetMongoEnvironmentNormal(t *testing.T) {
       port: 27017
       host: localhost
       database: test
+      credential:
+        username: lunarc
+        password: lunarc
   test:
     server:
       port: 8888
@@ -96,6 +100,9 @@ func TestGetMongoNormal(t *testing.T) {
       port: 27017
       host: mongo
       database: test
+      credential:
+        username: lunarc
+        password: lunarc
   `
 	mongo, err := GetMongo([]byte(data), "development")
 	if err != nil {
@@ -103,5 +110,17 @@ func TestGetMongoNormal(t *testing.T) {
 	}
 	if mongo.Port != 27017 {
 		t.Fatalf("Must return a Mongo with Port 27017 not %v", mongo.Port)
+	}
+	if strings.Compare(mongo.Host, "mongo") != 0 {
+		t.Fatalf("Must return a Mongo with Host mongo not %v", mongo.Host)
+	}
+	if strings.Compare(mongo.Database, "test") != 0 {
+		t.Fatalf("Must return a Mongo with Database mongo not %v", mongo.Database)
+	}
+	if strings.Compare(mongo.Credential.Username, "lunarc") != 0 {
+		t.Fatalf("Must return a Mongo with username credential lunarc not %v", mongo.Credential.Username)
+	}
+	if strings.Compare(mongo.Credential.Password, "lunarc") != 0 {
+		t.Fatalf("Must return a Mongo with password credential lunarc not %v", mongo.Credential.Password)
 	}
 }

@@ -16,6 +16,7 @@
 package datasource
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/DamienFontaine/lunarc/config"
@@ -34,10 +35,19 @@ func NewMongo(filename string, environment string) (*Mongo, error) {
 	if err != nil {
 		return nil, err
 	}
-	session, err := mgo.Dial(cnf.Host)
+	session, err := mgo.Dial(fmt.Sprintf("%v:%d", cnf.Host, cnf.Port))
 	if err != nil {
 		log.Printf("Impossible de contacter %v sur le port %d", cnf.Host, cnf.Port)
 		return nil, err
+	}
+	if cnf.Credential != nil {
+		if len(cnf.Credential.Username) > 0 && len(cnf.Credential.Password) > 0 {
+			err = session.Login(cnf.Credential)
+			if err != nil {
+				log.Println("Impossible de s'identifier à MongoDB")
+				return nil, err
+			}
+		}
 	}
 	session.SetMode(mgo.Monotonic, true)
 	return &Mongo{Session: session, Database: session.DB(cnf.Database)}, nil

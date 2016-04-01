@@ -28,3 +28,35 @@ func TestNewMongoNormal(t *testing.T) {
 		t.Fatalf("NewMongo must have a session")
 	}
 }
+
+func TestNewMongoWithBadPort(t *testing.T) {
+	mongo, err := NewMongo("config.yml", "stagingBadPort")
+	if err == nil {
+		t.Fatalf("NewMongo must'nt realize a success connection")
+	}
+	if mongo != nil {
+		t.Fatalf("NewMongo must return nil")
+	}
+}
+
+func TestNewMongoWithCredentials(t *testing.T) {
+	t.Skip("skipping test on Travis.")
+	mongo, err := NewMongo("config.yml", "stagingMongoCredential")
+	if err != nil {
+		t.Fatalf("NewMongo must realize a success connection but %v", err)
+	}
+	if mongo.Session == nil {
+		t.Fatalf("NewMongo must have a session")
+	}
+}
+
+func TestNewMongoWithBadCredentials(t *testing.T) {
+	t.Skip("skipping test on Travis.")
+	mongo, err := NewMongo("config.yml", "stagingMongoBadCredential")
+	if err == nil {
+		t.Fatalf("NewMongo must'nt realize a success connection")
+	}
+	if mongo != nil {
+		t.Fatalf("NewMongo must'nt have a session")
+	}
+}

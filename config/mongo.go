@@ -15,13 +15,18 @@
 
 package config
 
-import "strings"
+import (
+	"strings"
+
+	"gopkg.in/mgo.v2"
+)
 
 //Mongo configuration
 type Mongo struct {
-	Port     int
-	Host     string
-	Database string
+	Port       int
+	Host       string
+	Database   string
+	Credential *mgo.Credential
 }
 
 //MongoEnvironment configurations

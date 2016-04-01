@@ -52,6 +52,48 @@ nocertssl:
     port: 27017
     host: mongo
     database: test
+stagingMongoCredential:
+  server:
+    port: 8888
+    ssl:
+      key: my.key
+      certificate: my.crt
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: 127.0.0.1
+    database: lunarc
+    credential:
+      username: lunarc
+      password: lunarc
+stagingMongoBadCredential:
+  server:
+    port: 8888
+    ssl:
+      key: my.key
+      certificate: my.crt
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: 127.0.0.1
+    database: lunarc
+    credential:
+      username: lunarc
+      password: lunar
+stagingBadPort:
+  server:
+    port: 8888
+    ssl:
+      key: my.key
+      certificate: my.crt
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27016
+    host: 127.0.0.1
+    database: test
 staging:
   server:
     port: 8888
