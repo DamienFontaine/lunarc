@@ -137,8 +137,15 @@ func TestStartWithError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error during test preparation : %v", err)
 	}
-	defer l.Close()
-	go http.Serve(l, nil)
+
+	done := make(chan struct{}, 1)
+
+	go func() {
+		err = http.Serve(l, nil)
+		if err != nil {
+			close(done)
+		}
+	}()
 
 	server := getHTTPServer(t, "test")
 
@@ -149,6 +156,8 @@ func TestStartWithError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error: listen tcp :8888: bind: address already in use")
 	}
+	l.Close()
+	<-done
 }
 
 func TestStartWithSSLAndError(t *testing.T) {
@@ -156,8 +165,15 @@ func TestStartWithSSLAndError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error during test preparation : %v", err)
 	}
-	defer l.Close()
-	go http.Serve(l, nil)
+
+	done := make(chan struct{}, 1)
+
+	go func() {
+		err = http.Serve(l, nil)
+		if err != nil {
+			close(done)
+		}
+	}()
 
 	server := getHTTPServer(t, "ssl")
 
@@ -168,6 +184,9 @@ func TestStartWithSSLAndError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error: listen tcp :8888: bind: address already in use")
 	}
+
+	l.Close()
+	<-done
 }
 
 func TestStopNormal(t *testing.T) {
