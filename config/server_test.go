@@ -27,6 +27,9 @@ func TestGetServerEnvironmentNormal(t *testing.T) {
   development:
     server:
       port: 8888
+      log:
+        file: logs/
+        level: DEBUG
       jwt:
         key: LunarcSecretKey
     mongo:
@@ -36,6 +39,9 @@ func TestGetServerEnvironmentNormal(t *testing.T) {
   test:
     server:
       port: 8888
+      log:
+        file: logs/
+        level: DEBUG
       jwt:
         key: LunarcSecretKey
     mongo:
@@ -45,6 +51,9 @@ func TestGetServerEnvironmentNormal(t *testing.T) {
   production:
     server:
       port: 8888
+      log:
+        file: logs/
+        level: DEBUG
       url: 127.0.0.1
       ssl:
         key: my.key
@@ -73,6 +82,12 @@ func TestGetServerEnvironmentNormal(t *testing.T) {
 	production = res.(Server)
 	if production.Port != 8888 {
 		t.Fatalf("Must return a server port")
+	}
+	if strings.Compare(production.Log.File, "logs/") != 0 {
+		t.Fatalf("Must return a log repository logs/ but %v", production.Log)
+	}
+	if strings.Compare(production.Log.Level, "DEBUG") != 0 {
+		t.Fatalf("Must return a log level DEBUG but %v", production.Log)
 	}
 	if strings.Compare(production.URL, "127.0.0.1") != 0 {
 		t.Fatalf("Must return a server URL")

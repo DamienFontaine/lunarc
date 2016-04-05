@@ -21,7 +21,11 @@ import "strings"
 type Server struct {
 	Port int
 	URL  string
-	SSL  struct {
+	Log  struct {
+		File  string
+		Level string
+	}
+	SSL struct {
 		Key         string
 		Certificate string
 	}

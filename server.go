@@ -19,16 +19,19 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"syscall"
 
+	"github.com/DamienFontaine/lunarc/config"
 	"golang.org/x/net/http2"
 
-	"github.com/DamienFontaine/lunarc/config"
+	log "github.com/Sirupsen/logrus"
 )
+
+const logFilename = "lunarc.log"
 
 //Server is an http.ServeMux with a Context.
 type Server interface {
@@ -52,19 +55,36 @@ type WebServer struct {
 //NewWebServer create a new instance of WebServer
 func NewWebServer(filename string, environment string) (server *WebServer, err error) {
 	conf, err := config.GetServer(filename, environment)
+
+	logFile, err := os.OpenFile(conf.Log.File+logFilename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.SetOutput(os.Stderr)
+		log.Warningf("Can't open logfile: %v", err)
+	} else {
+		log.SetOutput(logFile)
+	}
+
+	level := log.ErrorLevel
+	if strings.Compare(conf.Log.Level, "") != 0 {
+		level, _ = log.ParseLevel(conf.Log.Level)
+	} else {
+		log.Infof("Log Level: %v", level)
+	}
+	log.SetLevel(level)
+
 	server = &WebServer{conf: conf, Done: make(chan bool, 1), Error: make(chan error, 1), server: http.Server{Handler: http.NewServeMux()}, quit: make(chan bool)}
 	return
 }
 
 //Start the server.
 func (ws *WebServer) Start() (err error) {
-	log.Printf("Lunarc is starting on port :%d", ws.conf.Port)
+	log.Infof("Lunarc is starting on port :%d", ws.conf.Port)
 	go func() {
 		var l net.Listener
 
 		l, err = net.Listen("tcp", fmt.Sprintf(":%d", ws.conf.Port))
 		if err != nil {
-			log.Printf("Error: %v", err)
+			log.Errorf("Error: %v", err)
 			ws.Error <- err
 			return
 		}
@@ -98,7 +118,7 @@ func (ws *WebServer) Start() (err error) {
 			config.Certificates = make([]tls.Certificate, 1)
 			config.Certificates[0], err = tls.LoadX509KeyPair(ws.conf.SSL.Certificate, ws.conf.SSL.Key)
 			if err != nil {
-				log.Printf("Error: %v", err)
+				log.Errorf("%v", err)
 				l.Close()
 				ws.Error <- err
 				return
@@ -108,7 +128,7 @@ func (ws *WebServer) Start() (err error) {
 
 			err = http2.ConfigureServer(&ws.server, nil)
 			if err != nil {
-				log.Printf("Error: %v", err)
+				log.Errorf("%v", err)
 				l.Close()
 				ws.Error <- err
 				return
@@ -178,7 +198,7 @@ func (ws *WebServer) handleInterrupt(listener net.Listener, shutdown chan chan s
 	ws.server.SetKeepAlivesEnabled(false)
 	err := listener.Close()
 	if err != nil {
-		log.Printf("Error on listener close: %v", err)
+		log.Errorf("Error on listener close: %v", err)
 	}
 	<-ws.quit
 	done := make(chan struct{})
@@ -186,17 +206,17 @@ func (ws *WebServer) handleInterrupt(listener net.Listener, shutdown chan chan s
 	<-done
 	listener = nil
 	ws.interrupt = nil
-	log.Println("Lunarc terminated.")
+	log.Info("Lunarc terminated.")
 	ws.Done <- true
 }
 
 //Stop the server.
 func (ws *WebServer) Stop() {
 	if ws.interrupt != nil && ws.quit != nil {
-		log.Println("Lunarc is stopping...")
+		log.Info("Lunarc is stopping...")
 		ws.quit <- true
 	} else {
-		log.Println("Lunarc is not running")
+		log.Info("Lunarc is not running")
 		ws.Error <- errors.New("Lunarc is not running")
 		ws.Done <- false
 	}

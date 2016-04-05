@@ -1,1 +1,3 @@
 *.coverprofile
+testdata/logs/
+testdata/lunarc.log

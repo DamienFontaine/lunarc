@@ -37,6 +37,17 @@ func getHTTPServer(t *testing.T, env string) (s *WebServer) {
 	return
 }
 
+func TestNewWebServerWithNoLog(t *testing.T) {
+	server := getHTTPServer(t, "testNoLog")
+
+	if server.conf.Port != 8888 {
+		t.Fatalf("Non expected server port: %v != %v", 8888, server.conf.Port)
+	}
+	if server.conf.Jwt.Key != "LunarcSecretKey" {
+		t.Fatalf("Non expected server Jwt secret key: %v != %v", "LunarcSecretKey", server.conf.Port)
+	}
+}
+
 func TestNewWebServer(t *testing.T) {
 	server := getHTTPServer(t, "test")
 
