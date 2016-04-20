@@ -18,11 +18,15 @@ package lunarc
 import (
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/dgrijalva/jwt-go"
 
 	"github.com/DamienFontaine/lunarc/config"
 )
+
+const aFilename = "access.log"
 
 //AuthMiddleWare manage authorizations
 func AuthMiddleWare(next http.Handler, cnf config.Server) http.Handler {
@@ -43,6 +47,19 @@ func AuthMiddleWare(next http.Handler, cnf config.Server) http.Handler {
 				w.WriteHeader(http.StatusUnauthorized)
 			}
 		}
+	})
+}
+
+//Logging logs http requests
+func Logging(next http.Handler, log *logrus.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srw := StatusResponseWriter{w, 0, 0}
+		start := time.Now()
+		next.ServeHTTP(&srw, r)
+		end := time.Now()
+		latency := end.Sub(start)
+
+		log.WithField("client", r.RemoteAddr).WithField("latency", latency).WithField("length", srw.Length()).WithField("code", srw.Status()).Printf("%s %s %s", r.Method, r.URL, r.Proto)
 	})
 }
 
