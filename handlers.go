@@ -26,8 +26,6 @@ import (
 	"github.com/DamienFontaine/lunarc/config"
 )
 
-const aFilename = "access.log"
-
 //AuthMiddleWare manage authorizations
 func AuthMiddleWare(next http.Handler, cnf config.Server) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

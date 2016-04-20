@@ -72,7 +72,7 @@ func NewWebServer(filename string, environment string) (server *WebServer, err e
 	}
 	log.SetLevel(level)
 
-	server = &WebServer{conf: conf, Done: make(chan bool, 1), Error: make(chan error, 1), server: http.Server{Handler: http.NewServeMux()}, quit: make(chan bool)}
+	server = &WebServer{conf: conf, Done: make(chan bool, 1), Error: make(chan error, 1), server: http.Server{Handler: NewLoggingServeMux(conf)}, quit: make(chan bool)}
 	return
 }
 

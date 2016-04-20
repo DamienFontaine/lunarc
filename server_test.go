@@ -32,7 +32,7 @@ func getHTTPServer(t *testing.T, env string) (s *WebServer) {
 	if err != nil {
 		t.Fatalf("Non expected error: %v", err)
 	}
-	m := s.GetHandler().(*http.ServeMux)
+	m := s.GetHandler().(*LoggingServeMux)
 	m.Handle("/", SingleFile("hello.html"))
 	return
 }
