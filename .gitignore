@@ -1,4 +1,4 @@
 *.coverprofile
-testdata/logs/
+testdata/logs/*.log
 testdata/lunarc.log
 testdata/access.log
