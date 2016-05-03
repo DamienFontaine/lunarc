@@ -1,6 +1,33 @@
 test:
   server:
     port: 8888
+    log:
+      file: ./logs/
+      level: DEBUG
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: mongo
+    database: test
+testNoLog:
+  server:
+    port: 8888
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: mongo
+    database: test
+ssl:
+  server:
+    port: 8888
+    log:
+      file: ./logs/
+      level: DEBUG
+    ssl:
+      certificate: ./ssl/test.crt
+      key: ./ssl/test.key
     jwt:
       key: LunarcSecretKey
   mongo:
@@ -10,15 +37,105 @@ test:
 development:
   server:
     port: 8888
+    log:
+      file: ./logs/
+      level: DEBUG
     jwt:
       key: LunarcSecretKey
   mongo:
     port: 27017
     host: localhost
     database: test
+nokeyssl:
+  server:
+    port: 8888
+    log:
+      file: ./logs/
+      level: DEBUG
+    ssl:
+      certificate: ./ssl/test.crt
+      key: ./ssl/NoKey.key
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: mongo
+    database: test
+nocertssl:
+  server:
+    port: 8888
+    log:
+      file: ./logs/
+      level: DEBUG
+    ssl:
+      certificate: ./ssl/NoCert.crt
+      key: ./ssl/test.key
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: mongo
+    database: test
+stagingMongoCredential:
+  server:
+    port: 8888
+    log:
+      file: ./logs/
+      level: DEBUG
+    ssl:
+      key: my.key
+      certificate: my.crt
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: 127.0.0.1
+    database: lunarc
+    credential:
+      username: lunarc
+      password: lunarc
+stagingMongoBadCredential:
+  server:
+    port: 8888
+    log:
+      file: ./logs/
+      level: DEBUG
+    ssl:
+      key: my.key
+      certificate: my.crt
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27017
+    host: 127.0.0.1
+    database: lunarc
+    credential:
+      username: lunarc
+      password: lunar
+stagingBadPort:
+  server:
+    port: 8888
+  log:
+    file: ./logs/
+    level: DEBUG
+    ssl:
+      key: my.key
+      certificate: my.crt
+    jwt:
+      key: LunarcSecretKey
+  mongo:
+    port: 27016
+    host: 127.0.0.1
+    database: test
 staging:
   server:
     port: 8888
+    log:
+      file: ./logs/
+      level: DEBUG
+    ssl:
+      key: my.key
+      certificate: my.crt
     jwt:
       key: LunarcSecretKey
   mongo:

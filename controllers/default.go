@@ -15,9 +15,6 @@
 
 package controllers
 
-import "github.com/DamienFontaine/lunarc"
-
 //DefaultController allows a controller to access at Mongo
 type DefaultController struct {
-	Context lunarc.DefaultContext
 }

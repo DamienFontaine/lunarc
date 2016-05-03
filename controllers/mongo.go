@@ -15,9 +15,11 @@
 
 package controllers
 
-import "github.com/DamienFontaine/lunarc"
+import (
+	"github.com/DamienFontaine/lunarc/datasource"
+)
 
 //MongoController allows a controller to access at Mongo
 type MongoController struct {
-	Context lunarc.MongoContext
+	Mongo datasource.Mongo
 }

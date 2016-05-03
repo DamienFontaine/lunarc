@@ -16,72 +16,218 @@
 package lunarc
 
 import (
+	"crypto/tls"
+	"errors"
 	"fmt"
-	"log"
+	"net"
 	"net/http"
+	"os"
+	"strings"
+	"syscall"
 
 	"github.com/DamienFontaine/lunarc/config"
-	"github.com/DamienFontaine/lunarc/datasource"
-	"github.com/DamienFontaine/lunarc/utils"
+	"golang.org/x/net/http2"
+
+	log "github.com/Sirupsen/logrus"
 )
+
+const logFilename = "lunarc.log"
 
 //Server is an http.ServeMux with a Context.
 type Server interface {
-	Initialize(string, string) error
 	Start() error
 	Stop()
-	GetContext() Context
-	GetMux() *http.ServeMux
+	GetHandler() http.Handler
+	GetConfig() config.Server
 }
 
 //WebServer is a Server with a specialize Context.
 type WebServer struct {
-	Mux     *http.ServeMux
-	Context MongoContext
+	Error       chan error
+	Done        chan bool
+	server      http.Server
+	quit        chan bool
+	interrupt   chan os.Signal
+	conf        config.Server
+	connections map[net.Conn]http.ConnState
 }
 
-//Initialize the server.
-func (ws *WebServer) Initialize(filename string, environment string) (err error) {
-	var cnf config.Config
+//NewWebServer create a new instance of WebServer
+func NewWebServer(filename string, environment string) (server *WebServer, err error) {
+	conf, err := config.GetServer(filename, environment)
 
-	if ws.Mux == nil {
-		ws.Mux = http.NewServeMux()
+	logFile, err := os.OpenFile(conf.Log.File+logFilename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.SetOutput(os.Stderr)
+		log.Warningf("Can't open logfile: %v", err)
+	} else {
+		log.SetOutput(logFile)
 	}
 
-	var configUtil = new(utils.ConfigUtil)
-	cnf, err = configUtil.Construct(filename, environment)
+	level := log.ErrorLevel
+	if strings.Compare(conf.Log.Level, "") != 0 {
+		level, _ = log.ParseLevel(conf.Log.Level)
+	} else {
+		log.Infof("Log Level: %v", level)
+	}
+	log.SetLevel(level)
 
-	ws.Context = MongoContext{cnf, nil}
-
+	server = &WebServer{conf: conf, Done: make(chan bool, 1), Error: make(chan error, 1), server: http.Server{Handler: NewLoggingServeMux(conf)}, quit: make(chan bool)}
 	return
 }
 
 //Start the server.
 func (ws *WebServer) Start() (err error) {
-	log.Println("Lunarc is starting...")
-	err = http.ListenAndServe(fmt.Sprintf(":%d", ws.Context.Cnf.Server.Port), ws.Mux)
-	if err != nil {
-		log.Printf("Fatal: %v", err)
+	log.Infof("Lunarc is starting on port :%d", ws.conf.Port)
+	go func() {
+		var l net.Listener
+
+		l, err = net.Listen("tcp", fmt.Sprintf(":%d", ws.conf.Port))
+		if err != nil {
+			log.Errorf("Error: %v", err)
+			ws.Error <- err
+			return
+		}
+
+		// Track connection state
+		add := make(chan net.Conn)
+		active := make(chan net.Conn)
+		idle := make(chan net.Conn)
+		remove := make(chan net.Conn)
+
+		ws.server.ConnState = func(conn net.Conn, state http.ConnState) {
+			switch state {
+			case http.StateNew:
+				add <- conn
+			case http.StateActive:
+				active <- conn
+			case http.StateIdle:
+				idle <- conn
+			case http.StateClosed, http.StateHijacked:
+				remove <- conn
+			}
+		}
+
+		shutdown := make(chan chan struct{})
+		go ws.handleConnections(add, active, idle, remove, shutdown)
+		go ws.handleInterrupt(l, shutdown)
+
+		if len(ws.conf.SSL.Certificate) > 0 && len(ws.conf.SSL.Key) > 0 {
+			config := tls.Config{}
+
+			config.Certificates = make([]tls.Certificate, 1)
+			config.Certificates[0], err = tls.LoadX509KeyPair(ws.conf.SSL.Certificate, ws.conf.SSL.Key)
+			if err != nil {
+				log.Errorf("%v", err)
+				l.Close()
+				ws.Error <- err
+				return
+			}
+
+			ws.server.TLSConfig = &config
+
+			err = http2.ConfigureServer(&ws.server, nil)
+			if err != nil {
+				log.Errorf("%v", err)
+				l.Close()
+				ws.Error <- err
+				return
+			}
+			err = ws.server.Serve(tls.NewListener(l, &config))
+			if err != nil {
+				close(ws.quit)
+				return
+			}
+		} else {
+			err = ws.server.Serve(l)
+			if err != nil {
+				close(ws.quit)
+				return
+			}
+		}
+	}()
+
+	<-ws.quit
+	ws.interrupt <- syscall.SIGINT
+	return
+}
+
+func (ws *WebServer) handleConnections(add, active, idle, remove chan net.Conn, shutdown chan chan struct{}) {
+	var done chan struct{}
+	ws.connections = map[net.Conn]http.ConnState{}
+	for {
+		select {
+		case conn := <-add:
+			ws.connections[conn] = http.StateNew
+		case conn := <-active:
+			ws.connections[conn] = http.StateActive
+		case conn := <-remove:
+			delete(ws.connections, conn)
+			if done != nil && len(ws.connections) == 0 {
+				done <- struct{}{}
+				return
+			}
+		case conn := <-idle:
+			ws.connections[conn] = http.StateIdle
+			if done != nil {
+				conn.Close()
+				if len(ws.connections) == 0 {
+					done <- struct{}{}
+				}
+			}
+		case done = <-shutdown:
+			for k, v := range ws.connections {
+				if v == http.StateIdle {
+					k.Close()
+					delete(ws.connections, k)
+				}
+			}
+			if len(ws.connections) == 0 {
+				done <- struct{}{}
+			}
+			return
+		}
 	}
-	return err
+}
+
+func (ws *WebServer) handleInterrupt(listener net.Listener, shutdown chan chan struct{}) {
+	if ws.interrupt == nil {
+		ws.interrupt = make(chan os.Signal, 1)
+	}
+	<-ws.interrupt
+	ws.server.SetKeepAlivesEnabled(false)
+	err := listener.Close()
+	if err != nil {
+		log.Errorf("Error on listener close: %v", err)
+	}
+	<-ws.quit
+	done := make(chan struct{})
+	shutdown <- done
+	<-done
+	listener = nil
+	ws.interrupt = nil
+	log.Info("Lunarc terminated.")
+	ws.Done <- true
 }
 
 //Stop the server.
 func (ws *WebServer) Stop() {
-	//TODO
+	if ws.interrupt != nil && ws.quit != nil {
+		log.Info("Lunarc is stopping...")
+		ws.quit <- true
+	} else {
+		log.Info("Lunarc is not running")
+		ws.Error <- errors.New("Lunarc is not running")
+		ws.Done <- false
+	}
 }
 
-//SetDatasource allow use of datasource. Here MongoDB.
-func (ws *WebServer) SetDatasource() {
-	ws.Context.Session = datasource.GetSession(ws.Context.Cnf.Mongo.Port, ws.Context.Cnf.Mongo.Host)
+//GetHandler return the http.ServeMux of the server.
+func (ws *WebServer) GetHandler() http.Handler {
+	return ws.server.Handler
 }
 
-//GetContext returns the Context of the server.
-func (ws *WebServer) GetContext() Context {
-	return MongoContext(ws.Context)
-}
-
-//GetMux return the http.ServeMux of the server.
-func (ws *WebServer) GetMux() *http.ServeMux {
-	return ws.Mux
+//GetConfig return the configuration of the server.
+func (ws *WebServer) GetConfig() config.Server {
+	return ws.conf
 }

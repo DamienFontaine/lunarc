@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Sirupsen/logrus/hooks/test"
 	"github.com/dgrijalva/jwt-go"
 
 	"github.com/DamienFontaine/lunarc/config"
@@ -36,6 +37,21 @@ func TestSingleFileNormal(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("Non expected code: %v", w.Code)
+	}
+}
+
+func TestLoggingNormal(t *testing.T) {
+	request, _ := http.NewRequest("GET", "robot.txt", nil)
+
+	logger, hook := test.NewNullLogger()
+
+	next := SingleFile("robot.txt")
+
+	w := httptest.NewRecorder()
+	Logging(next, logger).ServeHTTP(w, request)
+
+	if len(hook.Entries) != 1 {
+		t.Fatalf("Must return 1 but : %v", len(hook.Entries))
 	}
 }
 
@@ -53,7 +69,7 @@ func TestSingleFileNotFound(t *testing.T) {
 func TestAuthMiddleWareNormal(t *testing.T) {
 	request, _ := http.NewRequest("POST", "/", nil)
 
-	cnf := new(config.Config)
+	cnf := new(config.Server)
 
 	next := SingleFile("robot.txt")
 
@@ -70,14 +86,14 @@ func TestAuthMiddleWareNormal(t *testing.T) {
 }
 
 func TestAuthMiddleWareWithGoodToken(t *testing.T) {
-	cnf := new(config.Config)
+	cnf := new(config.Server)
 
 	token := jwt.New(jwt.GetSigningMethod("HS256"))
 	token.Claims["username"] = "test"
 	token.Claims["email"] = "test@test.com"
 	token.Claims["id"] = "id"
 	token.Claims["exp"] = time.Now().Add(time.Minute * 10).Unix()
-	tokenString, err := token.SignedString([]byte(cnf.Server.Jwt.Key))
+	tokenString, err := token.SignedString([]byte(cnf.Jwt.Key))
 	if err != nil {
 		log.Fatal("Fatal", err)
 	}
@@ -100,14 +116,14 @@ func TestAuthMiddleWareWithGoodToken(t *testing.T) {
 }
 
 func TestAuthMiddleWareWithBadToken(t *testing.T) {
-	cnf := new(config.Config)
+	cnf := new(config.Server)
 
 	token := jwt.New(jwt.SigningMethodRS512)
 	token.Claims["username"] = "test"
 	token.Claims["email"] = "test@test.com"
 	token.Claims["id"] = "id"
 	token.Claims["exp"] = time.Now().Add(time.Minute * 10).Unix()
-	tokenString, _ := token.SignedString([]byte(cnf.Server.Jwt.Key))
+	tokenString, _ := token.SignedString([]byte(cnf.Jwt.Key))
 
 	request, _ := http.NewRequest("POST", "/robot.txt", nil)
 	request.Header.Set("Authorization", "bearer "+tokenString)
@@ -125,7 +141,7 @@ func TestAuthMiddleWareWithBadToken(t *testing.T) {
 func TestAuthMiddleWare401Error(t *testing.T) {
 	request, _ := http.NewRequest("POST", "/robot.txt", nil)
 
-	cnf := new(config.Config)
+	cnf := new(config.Server)
 
 	next := SingleFile("robot.txt")
 

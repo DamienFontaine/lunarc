@@ -16,49 +16,242 @@
 package lunarc
 
 import (
-	"fmt"
+	"crypto/tls"
+	"io/ioutil"
+	"net"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/net/http2"
 )
 
-func TestInitialize(t *testing.T) {
-	var server = new(WebServer)
-	server.Initialize("config.yml", "test")
-	if server.GetContext().GetCnf().Server.Port != 8888 {
-		t.Fatalf("Non expected server port: %v != %v", 8888, server.GetContext().GetCnf().Server.Port)
+func getHTTPServer(t *testing.T, env string) (s *WebServer) {
+	s, err := NewWebServer("config.yml", env)
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
 	}
-	if server.GetContext().GetCnf().Server.Jwt.Key != "LunarcSecretKey" {
-		t.Fatalf("Non expected server Jwt secret key: %v != %v", "LunarcSecretKey", server.GetContext().GetCnf().Server.Port)
+	m := s.GetHandler().(*LoggingServeMux)
+	m.Handle("/", SingleFile("hello.html"))
+	return
+}
+
+func TestNewWebServerWithNoLog(t *testing.T) {
+	server := getHTTPServer(t, "testNoLog")
+
+	if server.conf.Port != 8888 {
+		t.Fatalf("Non expected server port: %v != %v", 8888, server.conf.Port)
+	}
+	if server.conf.Jwt.Key != "LunarcSecretKey" {
+		t.Fatalf("Non expected server Jwt secret key: %v != %v", "LunarcSecretKey", server.conf.Port)
+	}
+}
+
+func TestNewWebServer(t *testing.T) {
+	server := getHTTPServer(t, "test")
+
+	if server.conf.Port != 8888 {
+		t.Fatalf("Non expected server port: %v != %v", 8888, server.conf.Port)
+	}
+	if server.conf.Jwt.Key != "LunarcSecretKey" {
+		t.Fatalf("Non expected server Jwt secret key: %v != %v", "LunarcSecretKey", server.conf.Port)
 	}
 }
 
 func TestStart(t *testing.T) {
-	var server = new(WebServer)
-	server.Initialize("config.yml", "test")
+	server := getHTTPServer(t, "test")
+
 	go server.Start()
 
 	time.Sleep(time.Second * 3)
 
-	_, err := http.Get("http://localhost:8888/")
+	resp, err := http.Get("http://localhost:8888/")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	server.Stop()
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if !strings.Contains(string(body), "Lunarc") {
+		t.Fatalf("Body must contain Lunarc word but : %v", body)
+	}
+
+	go server.Stop()
+	<-server.Done
+}
+
+func TestStartWithSSLNormal(t *testing.T) {
+	server := getHTTPServer(t, "ssl")
+
+	go server.Start()
+
+	time.Sleep(time.Second * 3)
+
+	client := &http.Client{Transport: &http2.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true, NextProtos: []string{"h2"}}}}
+
+	response, err := client.Get("https://localhost:8888/")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if response.TLS == nil {
+		t.Fatalf("This connection must be in HTTPS")
+	}
+
+	if strings.Compare(response.Proto, "HTTP/2.0") != 0 {
+		t.Fatalf("Must use HTTP/2 but use : %v", response.Proto)
+	}
+
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if !strings.Contains(string(body), "Lunarc") {
+		t.Fatalf("Body must contain Lunarc word but : %v", body)
+	}
+
+	go server.Stop()
+	<-server.Done
+}
+
+func TestStartWithSSLNoCertError(t *testing.T) {
+	server := getHTTPServer(t, "nocertssl")
+
+	go server.Start()
+
+	err := <-server.Error
+	if err == nil {
+		t.Fatalf("Expected error: Le fichier spécifié est introuvable")
+	}
+}
+
+func TestStartWithSSLNoKeyError(t *testing.T) {
+	server := getHTTPServer(t, "nokeyssl")
+
+	go server.Start()
+
+	err := <-server.Error
+	if err == nil {
+		t.Fatalf("Expected error: Le fichier spécifié est introuvable")
+	}
 }
 
 func TestStartWithError(t *testing.T) {
+	l, err := net.Listen("tcp", ":8888")
+	if err != nil {
+		t.Fatalf("Error during test preparation : %v", err)
+	}
 
-	go http.ListenAndServe(fmt.Sprintf(":%d", 8888), nil)
+	done := make(chan struct{}, 1)
 
-	var server = new(WebServer)
-	server.Initialize("config.yml", "test")
-	err := server.Start()
+	go func() {
+		err = http.Serve(l, nil)
+		if err != nil {
+			close(done)
+		}
+	}()
+
+	server := getHTTPServer(t, "test")
+
+	go server.Start()
+
+	err = <-server.Error
+
+	if err == nil {
+		t.Fatalf("Expected error: listen tcp :8888: bind: address already in use")
+	}
+	l.Close()
+	<-done
+}
+
+func TestStartWithSSLAndError(t *testing.T) {
+	l, err := net.Listen("tcp", ":8888")
+	if err != nil {
+		t.Fatalf("Error during test preparation : %v", err)
+	}
+
+	done := make(chan struct{}, 1)
+
+	go func() {
+		err = http.Serve(l, nil)
+		if err != nil {
+			close(done)
+		}
+	}()
+
+	server := getHTTPServer(t, "ssl")
+
+	go server.Start()
+
+	err = <-server.Error
 
 	if err == nil {
 		t.Fatalf("Expected error: listen tcp :8888: bind: address already in use")
 	}
 
-	server.Stop()
+	l.Close()
+	<-done
+}
+
+func TestStopNormal(t *testing.T) {
+	server := getHTTPServer(t, "test")
+
+	go server.Start()
+
+	time.Sleep(time.Second * 2)
+
+	resp, err := http.Get("http://localhost:8888/")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if !strings.Contains(string(body), "Lunarc") {
+		t.Fatalf("Body must contain Lunarc word but : %v", body)
+	}
+
+	go server.Stop()
+	<-server.Done
+
+	resp, err = http.Get("http://localhost:8888/")
+	if err == nil {
+		t.Fatalf("Error expected: Not Found: %v", resp)
+	}
+
+	l, err := net.Listen("tcp", ":8888")
+	if err != nil {
+		t.Fatalf("Error : %v", err)
+	}
+	defer l.Close()
+	go http.Serve(l, nil)
+}
+
+func TestStopUnstarted(t *testing.T) {
+	server := getHTTPServer(t, "test")
+
+	go server.Stop()
+
+	select {
+	case result := <-server.Done:
+		if result {
+			t.Fatalf("Non expected behavior")
+		}
+	case err := <-server.Error:
+		if err == nil {
+			t.Fatalf("Non expected error")
+		}
+		return
+	}
 }
