@@ -17,7 +17,6 @@ package services
 
 import (
 	"fmt"
-	"log"
 	"net/smtp"
 
 	"github.com/DamienFontaine/lunarc/config"
@@ -56,9 +55,6 @@ func (m *MailService) Send(message string, subject string, from string, to strin
 		message + "\r\n")
 
 	err = m.send(fmt.Sprintf("%s:%d", m.SMTP.Host, m.SMTP.Port), auth, from, t, msg)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	return
 }
