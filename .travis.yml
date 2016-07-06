@@ -12,12 +12,12 @@ before_install:
 before_script:
   - mongorestore testdata/mongo
 script:
-  - go test -coverprofile=config.coverprofile ./config
-  - go test -coverprofile=controllers.coverprofile ./controllers
-  - go test -tags=integration -coverprofile=datasource.coverprofile ./datasource
-  - go test -coverprofile=models.coverprofile ./models
-  - go test -tags=integration -coverprofile=services.coverprofile ./services
-  - go test -coverprofile=utils.coverprofile ./utils
-  - go test -coverprofile=core.coverprofile
+  - go test -coverprofile=config.coverprofile ./config -v
+  - go test -coverprofile=controllers.coverprofile ./controllers -v
+  - go test -tags=integration -coverprofile=datasource.coverprofile ./datasource -v
+  - go test -coverprofile=models.coverprofile ./models -v
+  - go test -tags=integration -coverprofile=services.coverprofile ./services -v
+  - go test -coverprofile=utils.coverprofile ./utils -v
+  - go test -coverprofile=core.coverprofile -v 
   - $HOME/gopath/bin/gover
   - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci

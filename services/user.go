@@ -115,7 +115,7 @@ func (u *UserService) Add(user models.User) (models.User, error) {
 	user.Password = string(password[:32])
 
 	userCollection := mongo.Database.C("user")
-	userCollection.Insert(&models.User{id, user.Username, user.Firstname, user.Lastname, user.Password, user.Salt, user.Email})
+	userCollection.Insert(&models.User{ID: id, Username: user.Username, Firstname: user.Firstname, Lastname: user.Lastname, Password: user.Password, Salt: user.Salt, Email: user.Email})
 
 	err = userCollection.FindId(id).One(&user)
 

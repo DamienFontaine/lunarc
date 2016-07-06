@@ -77,7 +77,7 @@ func (a *ArticleService) Add(article models.Article) (models.Article, error) {
 	id := bson.NewObjectId()
 	pretty := utils.SanitizeTitle(article.Titre)
 	articleCollection := mongo.Database.C("article")
-	articleCollection.Insert(&models.Article{id, article.Titre, pretty, article.Texte, article.Tags, article.Image, article.Vignette, article.Status, article.Create, article.Create, mgo.DBRef{Collection: "user", Id: article.UserRef.Id}})
+	articleCollection.Insert(&models.Article{ID: id, Titre: article.Titre, Pretty: pretty, Texte: article.Texte, Tags: article.Tags, Image: article.Image, Vignette: article.Vignette, Status: article.Status, Create: article.Create, Modified: article.Create, UserRef: mgo.DBRef{Collection: "user", Id: article.UserRef.Id}})
 
 	err := articleCollection.FindId(id).One(&article)
 
