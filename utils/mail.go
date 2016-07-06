@@ -24,7 +24,7 @@ import (
 
 // SendMailSSL envoie un email par SSL
 func SendMailSSL(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
-	conn, err := tls.Dial("tcp", addr, nil)
+	conn, err := tls.Dial("tcp", addr, &tls.Config{InsecureSkipVerify: true}) //TODO: Not secure
 	if err != nil {
 		log.Println("Error Dialing", err)
 		return err
