@@ -18,24 +18,16 @@
 package services
 
 import (
+	"errors"
 	"net/smtp"
+	"reflect"
 	"testing"
 
 	"github.com/DamienFontaine/lunarc/config"
+	"github.com/DamienFontaine/lunarc/utils"
 )
 
 var mailService MailService
-
-func TestMailService(t *testing.T) {
-	mailService = MailService{}
-
-	var i interface{} = &mailService
-	_, ok := i.(IMailService)
-
-	if !ok {
-		t.Fatalf("MailService must implement IMailService")
-	}
-}
 
 type EmailRecorder struct {
 	addr string
@@ -53,15 +45,58 @@ func mockSend(errToReturn error) (func(string, smtp.Auth, string, []string, []by
 	}, r
 }
 
-func TestSendNormal(t *testing.T) {
+func TestNewMailServiceNormal(t *testing.T) {
 	var data = `
-  development:
+  staging:
     smtp:
-      port: 464
-      host: smtp.test.com
+      port: 25
+      host: smtp.doe.com
       auth:
         user: john@doe.com
         password: doe
+  `
+	server, _ := config.GetSMTP([]byte(data), "staging")
+	mailService := NewMailService(server)
+	f1 := reflect.ValueOf(smtp.SendMail)
+	f2 := reflect.ValueOf(mailService.send)
+	if f1.Pointer() != f2.Pointer() {
+		t.Fatalf("MailService without SSL must use smtp.SendMail")
+	}
+}
+
+func TestNewMailServiceWithSSL(t *testing.T) {
+	var data = `
+  staging:
+    smtp:
+      port: 465
+      host: smtp.doe.com
+      ssl: true
+      auth:
+        user: john@doe.com
+        password: doe
+  `
+	server, _ := config.GetSMTP([]byte(data), "staging")
+	mailService := NewMailService(server)
+	f1 := reflect.ValueOf(utils.SendMailSSL)
+	f2 := reflect.ValueOf(mailService.send)
+	if f1.Pointer() != f2.Pointer() {
+		t.Fatalf("MailService without SSL must use smtp.SendMail")
+	}
+}
+
+func TestMailService(t *testing.T) {
+	mailService = MailService{}
+
+	var i interface{} = &mailService
+	_, ok := i.(IMailService)
+
+	if !ok {
+		t.Fatalf("MailService must implement IMailService")
+	}
+}
+
+func TestSendNormal(t *testing.T) {
+	var data = `
   staging:
     smtp:
       port: 465
@@ -86,5 +121,27 @@ func TestSendNormal(t *testing.T) {
 	}
 	if string(r.msg) != body {
 		t.Errorf("wrong message body.\n\nexpected: %s\n got: %s", body, r.msg)
+	}
+}
+
+func TestSendError(t *testing.T) {
+	var data = `
+  staging:
+    smtp:
+      port: 465
+      host: smtp.doe.com
+      ssl: true
+      auth:
+        user: john@doe.com
+        password: doe
+  `
+	err := errors.New("Error")
+	f, _ := mockSend(err)
+	smtp, _ := config.GetSMTP([]byte(data), "staging")
+	mailService = MailService{SMTP: smtp, send: f}
+
+	err = mailService.Send("message", "test", "john@doe.com", "jane@doe.com")
+	if err == nil {
+		t.Fatalf("Must return an error")
 	}
 }

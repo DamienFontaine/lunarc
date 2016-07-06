@@ -55,10 +55,10 @@ func (m *MailService) Send(message string, subject string, from string, to strin
 		"\r\n" +
 		message + "\r\n")
 
-	m.send(fmt.Sprintf("%s:%d", m.SMTP.Host, m.SMTP.Port), auth, from, t, msg)
+	err = m.send(fmt.Sprintf("%s:%d", m.SMTP.Host, m.SMTP.Port), auth, from, t, msg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return err
+	return
 }
