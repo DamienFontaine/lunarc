@@ -10,6 +10,12 @@ test:
     port: 27017
     host: mongo
     database: test
+  smtp:
+    port: 464
+    host: smtp.test.com
+    auth:
+      user: joh
+      password: doe
 testNoLog:
   server:
     port: 8888
@@ -34,6 +40,13 @@ ssl:
     port: 27017
     host: mongo
     database: test
+  smtp:
+    port: 465
+    host: smtp.doe.com
+    ssl: true
+    auth:
+      user: john@doe.com
+      password: doe
 development:
   server:
     port: 8888
