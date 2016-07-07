@@ -13,35 +13,36 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package services
+package lunarc
 
-import "github.com/DamienFontaine/lunarc"
+import (
+	"net/smtp"
+	"reflect"
+	"testing"
 
-//IMailService interface
-type IMailService interface {
-	Send(message string, subject string, from string, to string) error
+	"github.com/DamienFontaine/lunarc/utils"
+)
+
+func TestNewSMTPNormal(t *testing.T) {
+	s, err := NewSMTP("config.yml", "test")
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
+	}
+	f1 := reflect.ValueOf(smtp.SendMail)
+	f2 := reflect.ValueOf(s.send)
+	if f1.Pointer() != f2.Pointer() {
+		t.Fatalf("SMTP without SSL must use smtp.SendMail")
+	}
 }
 
-//MailService send email
-type MailService struct {
-	SMTP lunarc.MailSender
-}
-
-//NewMailService retourne un MailService
-func NewMailService(server lunarc.MailSender) *MailService {
-	return &MailService{SMTP: server}
-}
-
-//Send envoie un email
-func (m *MailService) Send(message string, subject string, from string, to string) (err error) {
-	t := []string{to}
-	msg := []byte("From: " + from + "\r\n" +
-		"To: " + to + "\r\n" +
-		"Subject: " + subject + "\r\n" +
-		"\r\n" +
-		message + "\r\n")
-
-	err = m.SMTP.SendMail(from, t, msg)
-
-	return
+func TestNewSMTPWithSSL(t *testing.T) {
+	s, err := NewSMTP("config.yml", "ssl")
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
+	}
+	f1 := reflect.ValueOf(utils.SendMailSSL)
+	f2 := reflect.ValueOf(s.send)
+	if f1.Pointer() != f2.Pointer() {
+		t.Fatalf("SMTP with SSL must use utils.SendMailSSL")
+	}
 }
