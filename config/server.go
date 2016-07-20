@@ -19,9 +19,10 @@ import "strings"
 
 //Server configuration
 type Server struct {
-	Port int
-	URL  string
-	Log  struct {
+	Port  int
+	URL   string
+	Admin string
+	Log   struct {
 		File  string
 		Level string
 	}
