@@ -16,15 +16,11 @@
 package web
 
 import (
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/Sirupsen/logrus/hooks/test"
-	"github.com/dgrijalva/jwt-go"
 )
 
 func TestSingleFileNormal(t *testing.T) {
@@ -60,93 +56,6 @@ func TestSingleFileNotFound(t *testing.T) {
 	SingleFile("robots.txt").ServeHTTP(w, request)
 
 	if w.Code != http.StatusNotFound {
-		t.Fatalf("Non expected code: %v", w.Code)
-	}
-}
-
-func TestAuthMiddleWareNormal(t *testing.T) {
-	request, _ := http.NewRequest("POST", "/", nil)
-
-	cnf := new(Config)
-
-	next := SingleFile("robot.txt")
-
-	w := httptest.NewRecorder()
-	AuthMiddleWare(next, *cnf).ServeHTTP(w, request)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("Non expected code: %v", w.Code)
-	}
-
-	if !strings.Contains(w.Body.String(), "test") {
-		t.Fatalf("Non expected Body")
-	}
-}
-
-func TestAuthMiddleWareWithGoodToken(t *testing.T) {
-	cnf := new(Config)
-
-	token := jwt.New(jwt.GetSigningMethod("HS256"))
-	token.Claims["username"] = "test"
-	token.Claims["email"] = "test@test.com"
-	token.Claims["id"] = "id"
-	token.Claims["exp"] = time.Now().Add(time.Minute * 10).Unix()
-	tokenString, err := token.SignedString([]byte(cnf.Jwt.Key))
-	if err != nil {
-		log.Fatal("Fatal", err)
-	}
-
-	request, _ := http.NewRequest("POST", "/robot.txt", nil)
-	request.Header.Set("Authorization", "bearer "+tokenString)
-
-	next := SingleFile("robot.txt")
-
-	w := httptest.NewRecorder()
-	AuthMiddleWare(next, *cnf).ServeHTTP(w, request)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("Non expected code: %v", w.Code)
-	}
-
-	if !strings.Contains(w.Body.String(), "test") {
-		t.Fatalf("Non expected Body")
-	}
-}
-
-func TestAuthMiddleWareWithBadToken(t *testing.T) {
-	cnf := new(Config)
-
-	token := jwt.New(jwt.SigningMethodRS512)
-	token.Claims["username"] = "test"
-	token.Claims["email"] = "test@test.com"
-	token.Claims["id"] = "id"
-	token.Claims["exp"] = time.Now().Add(time.Minute * 10).Unix()
-	tokenString, _ := token.SignedString([]byte(cnf.Jwt.Key))
-
-	request, _ := http.NewRequest("POST", "/robot.txt", nil)
-	request.Header.Set("Authorization", "bearer "+tokenString)
-
-	next := SingleFile("robot.txt")
-
-	w := httptest.NewRecorder()
-	AuthMiddleWare(next, *cnf).ServeHTTP(w, request)
-
-	if w.Code != http.StatusUnauthorized {
-		t.Fatalf("Non expected code: %v", w.Code)
-	}
-}
-
-func TestAuthMiddleWare401Error(t *testing.T) {
-	request, _ := http.NewRequest("POST", "/robot.txt", nil)
-
-	cnf := new(Config)
-
-	next := SingleFile("robot.txt")
-
-	w := httptest.NewRecorder()
-	AuthMiddleWare(next, *cnf).ServeHTTP(w, request)
-
-	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("Non expected code: %v", w.Code)
 	}
 }
