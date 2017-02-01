@@ -13,8 +13,34 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package controllers
+package smtp
 
-//DefaultController is a default controller
-type DefaultController struct {
+import (
+	"net/smtp"
+	"reflect"
+	"testing"
+)
+
+func TestNewSMTPNormal(t *testing.T) {
+	s, err := NewSMTP("config.yml", "test")
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
+	}
+	f1 := reflect.ValueOf(smtp.SendMail)
+	f2 := reflect.ValueOf(s.send)
+	if f1.Pointer() != f2.Pointer() {
+		t.Fatalf("SMTP without SSL must use smtp.SendMail")
+	}
+}
+
+func TestNewSMTPWithSSL(t *testing.T) {
+	s, err := NewSMTP("config.yml", "ssl")
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
+	}
+	f1 := reflect.ValueOf(SendMailSSL)
+	f2 := reflect.ValueOf(s.send)
+	if f1.Pointer() != f2.Pointer() {
+		t.Fatalf("SMTP with SSL must use SendMailSSL")
+	}
 }

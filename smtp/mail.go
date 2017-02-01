@@ -13,8 +13,33 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package controllers
+package smtp
 
-//DefaultController is a default controller
-type DefaultController struct {
+//IMailService interface
+type IMailService interface {
+	Send(message string, subject string, from string, to string) error
+}
+
+//MailService send email
+type MailService struct {
+	SMTP MailSender
+}
+
+//NewMailService retourne un MailService
+func NewMailService(server MailSender) *MailService {
+	return &MailService{SMTP: server}
+}
+
+//Send envoie un email
+func (m *MailService) Send(message string, subject string, from string, to string) (err error) {
+	t := []string{to}
+	msg := []byte("From: " + from + "\r\n" +
+		"To: " + to + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"\r\n" +
+		message + "\r\n")
+
+	err = m.SMTP.SendMail(from, t, msg)
+
+	return
 }

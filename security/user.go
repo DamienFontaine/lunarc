@@ -13,8 +13,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package controllers
+package security
 
-//DefaultController is a default controller
-type DefaultController struct {
+//User in Auhtentication
+type User struct {
+	Username string
+	Password string
+	Salt     string
+	Email    string
 }
