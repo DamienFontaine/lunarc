@@ -22,3 +22,9 @@ type User struct {
 	Salt     string
 	Email    string
 }
+
+//UserManager to manage user.
+type UserManager interface {
+	//Get a user
+	Get(username string, password string) (user User, err error)
+}
