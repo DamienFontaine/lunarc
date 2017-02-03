@@ -1,5 +1,3 @@
-// +build integration
-
 // Copyright (c) - Damien Fontaine <damien.fontaine@lineolia.net>
 //
 // This program is free software: you can redistribute it and/or modify
