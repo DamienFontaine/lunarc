@@ -17,7 +17,13 @@ package security
 
 import (
 	"bytes"
-	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
+	"log"
+	"math/rand"
+	"time"
+
+	jose "gopkg.in/square/go-jose.v2"
 
 	"golang.org/x/crypto/scrypt"
 )
@@ -57,4 +63,72 @@ func CheckPassword(password []byte, salt []byte, hpassword []byte) (bool, error)
 		return false, err
 	}
 	return bytes.Equal(hash, hpassword), nil
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const (
+	letterIdxBits = 6                    // 6 bits to represent a letter index
+	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+)
+
+var src = rand.NewSource(time.Now().UnixNano())
+
+//RandStringBytesMaskImprSrc Generate a random string
+func RandStringBytesMaskImprSrc(n int) string {
+	b := make([]byte, n)
+	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
+		if remain == 0 {
+			cache, remain = src.Int63(), letterIdxMax
+		}
+		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+			b[i] = letterBytes[idx]
+			i--
+		}
+		cache >>= letterIdxBits
+		remain--
+	}
+	return string(b)
+}
+
+//EncodeOAuth2Code generate an OAuth2 code
+func EncodeOAuth2Code(clientID, redirectURI, userID, sharedKey string) (code string, err error) {
+	rand := RandStringBytesMaskImprSrc(20)
+	exp := time.Now().Add(time.Minute * 10).String()
+	response := NewResponse(clientID, redirectURI, userID, exp, rand)
+	jresponse, err := json.Marshal(response)
+	if err != nil {
+		log.Printf("Error: %v", err)
+	}
+	j64response := base64.StdEncoding.EncodeToString(jresponse)
+	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.HS512, Key: []byte(sharedKey)}, nil)
+	if err != nil {
+		log.Printf("Error: %v", err)
+	}
+	object, err := signer.Sign([]byte(j64response))
+	if err != nil {
+		log.Printf("Error: %v", err)
+	}
+	code, err = object.CompactSerialize()
+	return
+}
+
+//DecodeOAuth2Code inverse of EncodeOAuth2Code
+func DecodeOAuth2Code(code, sharedKey string) (response Response, err error) {
+	object, err := jose.ParseSigned(code)
+	if err != nil {
+		return
+	}
+	output, err := object.Verify([]byte(sharedKey))
+	if err != nil {
+		return
+	}
+	base64Text := make([]byte, base64.StdEncoding.DecodedLen(len(output)))
+	l, err := base64.StdEncoding.Decode(base64Text, output)
+	if err != nil {
+		return
+	}
+	response = Response{}
+	err = json.Unmarshal(base64Text[:l], &response)
+	return
 }

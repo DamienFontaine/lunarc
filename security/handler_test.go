@@ -113,3 +113,28 @@ func TestTokenHandler401Error(t *testing.T) {
 		t.Fatalf("Non expected code: %v", w.Code)
 	}
 }
+
+func TestOAuth2WithoutToken(t *testing.T) {
+	request, _ := http.NewRequest("POST", "/", nil)
+	cnf := new(web.Config)
+	next := web.SingleFile("robot.txt")
+	w := httptest.NewRecorder()
+	Oauth2(next, *cnf).ServeHTTP(w, request)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("Non expected code: %v", w.Code)
+	}
+}
+func TestOAuth2WithGoodToken(t *testing.T) {
+	cnf := new(web.Config)
+	token := jwt.New(jwt.GetSigningMethod("HS256"))
+	token.Claims["exp"] = time.Now().Add(time.Hour * 1).Unix()
+	tokenString, _ := token.SignedString([]byte(cnf.Jwt.Key))
+	request, _ := http.NewRequest("POST", "/robot.txt", nil)
+	request.Header.Set("Authorization", "bearer "+tokenString)
+	next := web.SingleFile("robot.txt")
+	w := httptest.NewRecorder()
+	Oauth2(next, *cnf).ServeHTTP(w, request)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Non expected code: %v", w.Code)
+	}
+}

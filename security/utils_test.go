@@ -17,6 +17,7 @@ package security
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -76,5 +77,71 @@ func TestCheckPasswordWithBadPassword(t *testing.T) {
 	}
 	if valid {
 		t.Fatalf("Non expected behavior %v", sBadPassword)
+	}
+}
+
+func TestRandStringBytesMaskImprSrcNormal(t *testing.T) {
+	first := RandStringBytesMaskImprSrc(10)
+	second := RandStringBytesMaskImprSrc(10)
+	third := RandStringBytesMaskImprSrc(20)
+	if first == second {
+		t.Fatalf("Must be different")
+	}
+	if len(third) != 20 {
+		t.Fatalf("wrong size")
+	}
+}
+func TestEncodeOAuth2CodeNormal(t *testing.T) {
+	clientID := "1"
+	userID := "1"
+	redirectURI := "redirect"
+	sharedKey := "LunarcSecretKey"
+	code, err := EncodeOAuth2Code(clientID, redirectURI, userID, sharedKey)
+	if err != nil {
+		t.Fatalf("Doesn't must return error %v", err)
+	}
+	response, _ := DecodeOAuth2Code(code, sharedKey)
+	if strings.Compare(clientID, response.ClientID) != 0 {
+		t.Fatalf("Must be equal but %v != %v", clientID, response.ClientID)
+	}
+	if strings.Compare(userID, response.UserID) != 0 {
+		t.Fatalf("Must be equal but %v != %v", userID, response.UserID)
+	}
+	if strings.Compare(userID, response.UserID) != 0 {
+		t.Fatalf("Must be equal but %v != %v", userID, response.UserID)
+	}
+	if strings.Compare(response.Exp, "") == 0 {
+		t.Fatal("Exp must exist")
+	}
+	if strings.Compare(response.Code, "") == 0 {
+		t.Fatal("Code must exist")
+	}
+}
+
+//TestEncodeOAuth2CodeNormal
+func TestDecodeOAuth2CodeNormal(t *testing.T) {
+	clientID := "1"
+	userID := "1"
+	redirectURI := "redirect"
+	sharedKey := "LunarcSecretKey"
+	code, _ := EncodeOAuth2Code(clientID, redirectURI, userID, sharedKey)
+	response, err := DecodeOAuth2Code(code, sharedKey)
+	if err != nil {
+		t.Fatalf("Doesn't must return error %v", err)
+	}
+	if strings.Compare(clientID, response.ClientID) != 0 {
+		t.Fatalf("Must be equal but %v != %v", clientID, response.ClientID)
+	}
+	if strings.Compare(userID, response.UserID) != 0 {
+		t.Fatalf("Must be equal but %v != %v", userID, response.UserID)
+	}
+	if strings.Compare(userID, response.UserID) != 0 {
+		t.Fatalf("Must be equal but %v != %v", userID, response.UserID)
+	}
+	if strings.Compare(response.Exp, "") == 0 {
+		t.Fatal("Exp must exist")
+	}
+	if strings.Compare(response.Code, "") == 0 {
+		t.Fatal("Code must exist")
 	}
 }

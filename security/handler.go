@@ -17,6 +17,7 @@ package security
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/DamienFontaine/lunarc/web"
@@ -41,6 +42,24 @@ func TokenHandler(next http.Handler, cnf web.Config) http.Handler {
 			} else {
 				w.WriteHeader(http.StatusUnauthorized)
 			}
+		}
+	})
+}
+
+//Oauth2 manage authorizations
+func Oauth2(next http.Handler, cnf web.Config) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token, err := jwt.ParseFromRequest(r, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			}
+			return []byte(cnf.Jwt.Key), nil
+		})
+		if err == nil && token.Valid {
+			next.ServeHTTP(w, r)
+		} else {
+			log.Printf("Problem %v", err)
+			w.WriteHeader(http.StatusUnauthorized)
 		}
 	})
 }

@@ -16,10 +16,13 @@ package security_test
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"gitlab.lineolia.net/meda/leode-server/oauth2"
 
 	"github.com/DamienFontaine/lunarc/mock"
 	"github.com/DamienFontaine/lunarc/security"
@@ -77,5 +80,42 @@ func TestAuthenticateBadSignedString(t *testing.T) {
 	authController.Authenticate(w, r)
 	if w.Code != 400 {
 		t.Fatalf("Non expected return code %v != 400", w.Code)
+	}
+}
+
+//TestAuthorizeNormal
+func TestAuthorizeNormal(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	server, _ := web.NewWebServer("config.yml", "test")
+
+	mockApplicationManager := mock.NewMockApplicationManager(mockCtrl)
+	oAuth2Controller := security.NewOAuth2Controller(mockApplicationManager, server.GetConfig())
+
+	r, _ := http.NewRequest("GET", "/oauth2/authorize?client_id=1&response_type=code&redirect_uri=http://redirect", nil)
+	w := httptest.NewRecorder()
+	oAuth2Controller.Authorize(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Code must be 200 but get %v", w.Code)
+	}
+}
+
+// TestTokenNormal
+func TestTokenNormal(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	server, _ := web.NewWebServer("config.yml", "test")
+	mockApplicationManager := mock.NewMockApplicationManager(mockCtrl)
+	oAuth2Controller := security.NewOAuth2Controller(mockApplicationManager, server.GetConfig())
+	clientID := "1"
+	redirectURI := "http://redirect"
+	userID := "1"
+	sharedKey := "LunarcSecretKey"
+	code, _ := oauth2.EncodeOAuth2Code(clientID, redirectURI, userID, sharedKey)
+	r, _ := http.NewRequest("POST", fmt.Sprintf("/oauth2/token?grant_type=authorization_code&code=%v", code), nil)
+	w := httptest.NewRecorder()
+	oAuth2Controller.Token(w, r)
+	if strings.Compare(w.Body.String(), "") == 0 {
+		t.Fatal("Must return a token")
 	}
 }
