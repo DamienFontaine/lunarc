@@ -22,8 +22,6 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.lineolia.net/meda/leode-server/oauth2"
-
 	"github.com/DamienFontaine/lunarc/mock"
 	"github.com/DamienFontaine/lunarc/security"
 	"github.com/DamienFontaine/lunarc/web"
@@ -111,7 +109,7 @@ func TestTokenNormal(t *testing.T) {
 	redirectURI := "http://redirect"
 	userID := "1"
 	sharedKey := "LunarcSecretKey"
-	code, _ := oauth2.EncodeOAuth2Code(clientID, redirectURI, userID, sharedKey)
+	code, _ := security.EncodeOAuth2Code(clientID, redirectURI, userID, sharedKey)
 	r, _ := http.NewRequest("POST", fmt.Sprintf("/oauth2/token?grant_type=authorization_code&code=%v", code), nil)
 	w := httptest.NewRecorder()
 	oAuth2Controller.Token(w, r)
