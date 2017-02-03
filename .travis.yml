@@ -9,15 +9,13 @@ before_install:
   - go get github.com/modocache/gover
   - go get github.com/mattn/goveralls
   - if ! go get github.com/golang/tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
-before_script:
-  - mongorestore testdata/mongo
 script:
   - go test -coverprofile=config.coverprofile ./config -v
   - go test -coverprofile=controllers.coverprofile ./controllers -v
-  - go test -tags=integration -coverprofile=datasource.coverprofile ./datasource -v
-  - go test -coverprofile=models.coverprofile ./models -v
-  - go test -tags=integration -coverprofile=services.coverprofile ./services -v
+  - go test -tags=integration -coverprofile=mongo.coverprofile ./datasource/mongo -v
+  - go test -coverprofile=security.coverprofile ./security -v
+  - go test -coverprofile=smtp.coverprofile ./smtp -v
   - go test -coverprofile=utils.coverprofile ./utils -v
-  - go test -coverprofile=core.coverprofile -v 
+  - go test -coverprofile=web.coverprofile ./web -v
   - $HOME/gopath/bin/gover
   - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci
