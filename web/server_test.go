@@ -29,12 +29,12 @@ import (
 	"golang.org/x/net/http2"
 )
 
-func getHTTPServer(t *testing.T, env string) (s *WebServer) {
-	s, err := NewWebServer("config.yml", env)
+func getHTTPServer(t *testing.T, env string) (s *Server) {
+	s, err := NewServer("config.yml", env)
 	if err != nil {
 		t.Fatalf("Non expected error: %v", err)
 	}
-	m := s.GetHandler().(*LoggingServeMux)
+	m := s.Handler.(*LoggingServeMux)
 	m.Handle("/", SingleFile("hello.html"))
 	return
 }
@@ -42,22 +42,22 @@ func getHTTPServer(t *testing.T, env string) (s *WebServer) {
 func TestNewWebServerWithNoLog(t *testing.T) {
 	server := getHTTPServer(t, "testNoLog")
 
-	if server.conf.Port != 8888 {
-		t.Fatalf("Non expected server port: %v != %v", 8888, server.conf.Port)
+	if server.Config.Port != 8888 {
+		t.Fatalf("Non expected server port: %v != %v", 8888, server.Config.Port)
 	}
-	if server.conf.Jwt.Key != "LunarcSecretKey" {
-		t.Fatalf("Non expected server Jwt secret key: %v != %v", "LunarcSecretKey", server.conf.Port)
+	if server.Config.Jwt.Key != "LunarcSecretKey" {
+		t.Fatalf("Non expected server Jwt secret key: %v != %v", "LunarcSecretKey", server.Config.Jwt.Key)
 	}
 }
 
 func TestNewWebServer(t *testing.T) {
 	server := getHTTPServer(t, "test")
 
-	if server.conf.Port != 8888 {
-		t.Fatalf("Non expected server port: %v != %v", 8888, server.conf.Port)
+	if server.Config.Port != 8888 {
+		t.Fatalf("Non expected server port: %v != %v", 8888, server.Config.Port)
 	}
-	if server.conf.Jwt.Key != "LunarcSecretKey" {
-		t.Fatalf("Non expected server Jwt secret key: %v != %v", "LunarcSecretKey", server.conf.Port)
+	if server.Config.Jwt.Key != "LunarcSecretKey" {
+		t.Fatalf("Non expected server Jwt secret key: %v != %v", "LunarcSecretKey", server.Config.Jwt.Key)
 	}
 }
 
@@ -258,8 +258,8 @@ func TestStopUnstarted(t *testing.T) {
 	}
 }
 
-func GetLoggingHTTPServer(t *testing.T, env string) (s *WebServer) {
-	s, err := NewWebServer("config.yml", env)
+func GetLoggingHTTPServer(t *testing.T, env string) (s *Server) {
+	s, err := NewServer("config.yml", env)
 	if err != nil {
 		t.Fatalf("Non expected error: %v", err)
 	}

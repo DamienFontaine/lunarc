@@ -31,12 +31,12 @@ import (
 func TestAuthenticateNormal(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	server, _ := web.NewWebServer("config.yml", "test")
+	server, _ := web.NewServer("config.yml", "test")
 	username := "admin"
 	password := "admin"
 	user := security.User{Username: "admin", Password: "admin", Salt: "salt", Email: "admin@lineolia.net"}
 	mockUserManager := mock.NewMockUserManager(mockCtrl)
-	authController := security.NewAuthController(mockUserManager, server.GetConfig())
+	authController := security.NewAuthController(mockUserManager, server.Config)
 	var jsonStr = []byte(`{"username": "admin", "password": "admin"}`)
 	r, _ := http.NewRequest("POST", "/", bytes.NewBuffer(jsonStr))
 	w := httptest.NewRecorder()
@@ -53,9 +53,9 @@ func TestAuthenticateBadPassword(t *testing.T) {
 	username := "admin"
 	password := "admin"
 	user := security.User{}
-	server, _ := web.NewWebServer("config.yml", "test")
+	server, _ := web.NewServer("config.yml", "test")
 	mockUserManager := mock.NewMockUserManager(mockCtrl)
-	authController := security.NewAuthController(mockUserManager, server.GetConfig())
+	authController := security.NewAuthController(mockUserManager, server.Config)
 	var jsonStr = []byte(`{"username": "admin", "password": "admin"}`)
 	r, _ := http.NewRequest("POST", "/", bytes.NewBuffer(jsonStr))
 	w := httptest.NewRecorder()
@@ -69,9 +69,9 @@ func TestAuthenticateBadPassword(t *testing.T) {
 func TestAuthenticateBadSignedString(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	server, _ := web.NewWebServer("config.yml", "test")
+	server, _ := web.NewServer("config.yml", "test")
 	mockUserManager := mock.NewMockUserManager(mockCtrl)
-	authController := security.NewAuthController(mockUserManager, server.GetConfig())
+	authController := security.NewAuthController(mockUserManager, server.Config)
 	var jsonStr = []byte(`{"username": "admin", "password: "admin"}`)
 	r, _ := http.NewRequest("POST", "/", bytes.NewBuffer(jsonStr))
 	w := httptest.NewRecorder()
@@ -85,10 +85,10 @@ func TestAuthenticateBadSignedString(t *testing.T) {
 func TestAuthorizeNormal(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	server, _ := web.NewWebServer("config.yml", "test")
+	server, _ := web.NewServer("config.yml", "test")
 
 	mockApplicationManager := mock.NewMockApplicationManager(mockCtrl)
-	oAuth2Controller := security.NewOAuth2Controller(mockApplicationManager, server.GetConfig())
+	oAuth2Controller := security.NewOAuth2Controller(mockApplicationManager, server.Config)
 
 	r, _ := http.NewRequest("GET", "/oauth2/authorize?client_id=1&response_type=code&redirect_uri=http://redirect", nil)
 	w := httptest.NewRecorder()
@@ -102,9 +102,9 @@ func TestAuthorizeNormal(t *testing.T) {
 func TestTokenNormal(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	server, _ := web.NewWebServer("config.yml", "test")
+	server, _ := web.NewServer("config.yml", "test")
 	mockApplicationManager := mock.NewMockApplicationManager(mockCtrl)
-	oAuth2Controller := security.NewOAuth2Controller(mockApplicationManager, server.GetConfig())
+	oAuth2Controller := security.NewOAuth2Controller(mockApplicationManager, server.Config)
 	clientID := "1"
 	redirectURI := "http://redirect"
 	userID := "1"

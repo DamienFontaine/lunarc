@@ -33,27 +33,25 @@ import (
 
 const logFilename = "lunarc.log"
 
-//Server is an http.ServeMux with a Context.
-type Server interface {
+//IServer is an http.ServeMux with a Context.
+type IServer interface {
 	Start() error
 	Stop()
-	GetHandler() http.Handler
-	GetConfig() Config
 }
 
-//WebServer is a Server with a specialize Context.
-type WebServer struct {
+//Server is a Server with a specialize Context.
+type Server struct {
+	http.Server
+	Config      Config
 	Error       chan error
 	Done        chan bool
-	server      http.Server
 	quit        chan bool
 	interrupt   chan os.Signal
-	conf        Config
 	connections map[net.Conn]http.ConnState
 }
 
-//NewWebServer create a new instance of WebServer
-func NewWebServer(filename string, environment string) (server *WebServer, err error) {
+//NewServer create a new instance of Server
+func NewServer(filename string, environment string) (server *Server, err error) {
 	conf, err := GetConfig(filename, environment)
 
 	logFile, err := os.OpenFile(conf.Log.File+logFilename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
@@ -72,20 +70,20 @@ func NewWebServer(filename string, environment string) (server *WebServer, err e
 	}
 	log.SetLevel(level)
 
-	server = &WebServer{conf: conf, Done: make(chan bool, 1), Error: make(chan error, 1), server: http.Server{Handler: NewLoggingServeMux(conf)}, quit: make(chan bool)}
+	server = &Server{Config: conf, Done: make(chan bool, 1), Error: make(chan error, 1), Server: http.Server{Handler: NewLoggingServeMux(conf)}, quit: make(chan bool)}
 	return
 }
 
 //Start the server.
-func (ws *WebServer) Start() (err error) {
-	log.Infof("Lunarc is starting on port :%d", ws.conf.Port)
+func (s *Server) Start() (err error) {
+	log.Infof("Lunarc is starting on port :%d", s.Config.Port)
 	go func() {
 		var l net.Listener
 
-		l, err = net.Listen("tcp", fmt.Sprintf(":%d", ws.conf.Port))
+		l, err = net.Listen("tcp", fmt.Sprintf(":%d", s.Config.Port))
 		if err != nil {
 			log.Errorf("Error: %v", err)
-			ws.Error <- err
+			s.Error <- err
 			return
 		}
 
@@ -95,7 +93,7 @@ func (ws *WebServer) Start() (err error) {
 		idle := make(chan net.Conn)
 		remove := make(chan net.Conn)
 
-		ws.server.ConnState = func(conn net.Conn, state http.ConnState) {
+		s.ConnState = func(conn net.Conn, state http.ConnState) {
 			switch state {
 			case http.StateNew:
 				add <- conn
@@ -109,80 +107,80 @@ func (ws *WebServer) Start() (err error) {
 		}
 
 		shutdown := make(chan chan struct{})
-		go ws.handleConnections(add, active, idle, remove, shutdown)
-		go ws.handleInterrupt(l, shutdown)
+		go s.handleConnections(add, active, idle, remove, shutdown)
+		go s.handleInterrupt(l, shutdown)
 
-		if len(ws.conf.SSL.Certificate) > 0 && len(ws.conf.SSL.Key) > 0 {
+		if len(s.Config.SSL.Certificate) > 0 && len(s.Config.SSL.Key) > 0 {
 			config := tls.Config{}
 
 			config.Certificates = make([]tls.Certificate, 1)
-			config.Certificates[0], err = tls.LoadX509KeyPair(ws.conf.SSL.Certificate, ws.conf.SSL.Key)
+			config.Certificates[0], err = tls.LoadX509KeyPair(s.Config.SSL.Certificate, s.Config.SSL.Key)
 			if err != nil {
 				log.Errorf("%v", err)
 				l.Close()
-				ws.Error <- err
+				s.Error <- err
 				return
 			}
 
-			ws.server.TLSConfig = &config
+			s.TLSConfig = &config
 
-			err = http2.ConfigureServer(&ws.server, nil)
+			err = http2.ConfigureServer(&s.Server, nil)
 			if err != nil {
 				log.Errorf("%v", err)
 				l.Close()
-				ws.Error <- err
+				s.Error <- err
 				return
 			}
-			err = ws.server.Serve(tls.NewListener(l, &config))
+			err = s.Serve(tls.NewListener(l, &config))
 			if err != nil {
-				close(ws.quit)
+				close(s.quit)
 				return
 			}
 		} else {
-			err = ws.server.Serve(l)
+			err = s.Serve(l)
 			if err != nil {
-				close(ws.quit)
+				close(s.quit)
 				return
 			}
 		}
 	}()
 
-	<-ws.quit
-	ws.interrupt <- syscall.SIGINT
+	<-s.quit
+	s.interrupt <- syscall.SIGINT
 	return
 }
 
-func (ws *WebServer) handleConnections(add, active, idle, remove chan net.Conn, shutdown chan chan struct{}) {
+func (s *Server) handleConnections(add, active, idle, remove chan net.Conn, shutdown chan chan struct{}) {
 	var done chan struct{}
-	ws.connections = map[net.Conn]http.ConnState{}
+	s.connections = map[net.Conn]http.ConnState{}
 	for {
 		select {
 		case conn := <-add:
-			ws.connections[conn] = http.StateNew
+			s.connections[conn] = http.StateNew
 		case conn := <-active:
-			ws.connections[conn] = http.StateActive
+			s.connections[conn] = http.StateActive
 		case conn := <-remove:
-			delete(ws.connections, conn)
-			if done != nil && len(ws.connections) == 0 {
+			delete(s.connections, conn)
+			if done != nil && len(s.connections) == 0 {
 				done <- struct{}{}
 				return
 			}
 		case conn := <-idle:
-			ws.connections[conn] = http.StateIdle
+			s.connections[conn] = http.StateIdle
 			if done != nil {
 				conn.Close()
-				if len(ws.connections) == 0 {
+				if len(s.connections) == 0 {
 					done <- struct{}{}
 				}
 			}
 		case done = <-shutdown:
-			for k, v := range ws.connections {
+			for k, v := range s.connections {
 				if v == http.StateIdle {
 					k.Close()
-					delete(ws.connections, k)
+					delete(s.connections, k)
 				}
 			}
-			if len(ws.connections) == 0 {
+			if len(s.connections) == 0 {
 				done <- struct{}{}
 			}
 			return
@@ -190,46 +188,36 @@ func (ws *WebServer) handleConnections(add, active, idle, remove chan net.Conn, 
 	}
 }
 
-func (ws *WebServer) handleInterrupt(listener net.Listener, shutdown chan chan struct{}) {
-	if ws.interrupt == nil {
-		ws.interrupt = make(chan os.Signal, 1)
+func (s *Server) handleInterrupt(listener net.Listener, shutdown chan chan struct{}) {
+	if s.interrupt == nil {
+		s.interrupt = make(chan os.Signal, 1)
 	}
-	<-ws.interrupt
-	ws.server.SetKeepAlivesEnabled(false)
+	<-s.interrupt
+	s.SetKeepAlivesEnabled(false)
 	err := listener.Close()
 	if err != nil {
 		log.Errorf("Error on listener close: %v", err)
 	}
-	<-ws.quit
+	<-s.quit
 	done := make(chan struct{})
 	shutdown <- done
 	<-done
 	listener = nil
-	ws.interrupt = nil
+	s.interrupt = nil
 	log.Info("Lunarc terminated.")
-	ws.Done <- true
+	s.Done <- true
 }
 
 //Stop the server.
-func (ws *WebServer) Stop() {
-	if ws.interrupt != nil && ws.quit != nil {
+func (s *Server) Stop() {
+	if s.interrupt != nil && s.quit != nil {
 		log.Info("Lunarc is stopping...")
-		ws.quit <- true
+		s.quit <- true
 	} else {
 		log.Info("Lunarc is not running")
-		ws.Error <- errors.New("Lunarc is not running")
-		ws.Done <- false
+		s.Error <- errors.New("Lunarc is not running")
+		s.Done <- false
 	}
-}
-
-//GetHandler return the http.ServeMux of the server.
-func (ws *WebServer) GetHandler() http.Handler {
-	return ws.server.Handler
-}
-
-//GetConfig return the configuration of the server.
-func (ws *WebServer) GetConfig() Config {
-	return ws.conf
 }
 
 const aFilename = "access.log"
