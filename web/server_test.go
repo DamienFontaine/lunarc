@@ -39,7 +39,7 @@ func getHTTPServer(t *testing.T, env string) (s *Server) {
 	return
 }
 
-func TestNewWebServerWithNoLog(t *testing.T) {
+func TestNewServerWithNoLog(t *testing.T) {
 	server := getHTTPServer(t, "testNoLog")
 
 	if server.Config.Port != 8888 {
@@ -50,7 +50,7 @@ func TestNewWebServerWithNoLog(t *testing.T) {
 	}
 }
 
-func TestNewWebServer(t *testing.T) {
+func TestNewServer(t *testing.T) {
 	server := getHTTPServer(t, "test")
 
 	if server.Config.Port != 8888 {
