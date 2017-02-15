@@ -12,5 +12,69 @@ $ cd $GOPATH/src/github.com/DamienFontaine/lunarc
 $ godep restore
 ```
 
+## Example
+
+### Serve static files
+
+```
+.
++-- config.yml
++-- main.go
++-- Public
+|   +-- index.html
+```
+config.yml
+```yml
+production:
+  server:
+    port: 8888
+```
+main.go
+``` go
+package main
+
+import (
+	"log"
+	"net/http"
+
+	"github.com/DamienFontaine/lunarc/web"
+)
+
+func main() {
+	s, err := web.NewServer("config.yml", "production")
+	if err != nil {
+		log.Printf("Error: %v", err)
+	}
+	m := s.Handler.(*web.LoggingServeMux)
+	m.Handle("/", http.FileServer(http.Dir("public/")))
+
+	go s.Start()
+
+	select {
+	case <-s.Done:
+		return
+	case <-s.Error:
+		log.Println("Error: server terminate")
+		return
+	}
+}
+```
+public/index.html
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+<title>Example</title>
+  </head>
+  <body>
+    <h1>Hello Wolrd!</h1>
+  </body>
+</html>
+```
+Start the server
+```sh
+$ go run main.go
+```
+
 ## License
 GNU Affero General Public License version 3: <http://www.gnu.org/licenses/agpl-3.0.txt>
