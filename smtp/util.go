@@ -40,17 +40,20 @@ func SendMailSSL(addr string, a smtp.Auth, from string, to []string, msg []byte)
 	if a != nil {
 		if ok, _ := c.Extension("AUTH"); ok {
 			if err = c.Auth(a); err != nil {
+				log.Printf("Authentication error: %v", err)
 				return err
 			}
 		}
 	}
 
 	if err = c.Mail(from); err != nil {
+		log.Printf("From error: %v", err)
 		return err
 	}
 
 	for _, addr := range to {
 		if err = c.Rcpt(addr); err != nil {
+			log.Printf("Recipient error: %v", err)
 			return err
 		}
 	}
@@ -60,15 +63,8 @@ func SendMailSSL(addr string, a smtp.Auth, from string, to []string, msg []byte)
 		return err
 	}
 
-	_, err = w.Write(msg)
-	if err != nil {
-		return err
-	}
-
-	err = w.Close()
-	if err != nil {
-		return err
-	}
+	w.Write(msg)
+	w.Close()
 
 	return c.Quit()
 }
