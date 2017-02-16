@@ -16,6 +16,8 @@ test:
     auth:
       user: joh
       password: doe
+  testconfig:
+    port: 8888
 testNoLog:
   server:
     port: 8888

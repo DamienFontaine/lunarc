@@ -15,6 +15,20 @@
 
 package controllers
 
-//DefaultController is a default controller
-type DefaultController struct {
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+//TestPingNormal tests a simple Ping/Pong
+func TestPingNormal(t *testing.T) {
+	pingController := NewPingController()
+	r, _ := http.NewRequest("GET", "/Ping", nil)
+	w := httptest.NewRecorder()
+	pingController.Ping(w, r)
+	if !strings.Contains(w.Body.String(), "pong") {
+		t.Fatalf("Non expected Body")
+	}
 }

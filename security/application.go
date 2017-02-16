@@ -13,8 +13,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package controllers
+package security
 
-//DefaultController is a default controller
-type DefaultController struct {
+//Application to OAuth2
+type Application struct {
+	ClientID    string
+	Secret      string
+	Name        string
+	URL         string
+	Description string
+	Callback    string
+	User        User
+}
+
+// ApplicationManager to manage Application
+type ApplicationManager interface {
+	GetByClientID(clientID string) (application Application, err error)
 }

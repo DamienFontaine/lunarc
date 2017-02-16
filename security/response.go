@@ -12,9 +12,20 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
+//Response response code
 
-package controllers
+package security
 
-//DefaultController is a default controller
-type DefaultController struct {
+//Response Oauth2
+type Response struct {
+	ClientID    string
+	RedirectURI string
+	UserID      string
+	Exp         string
+	Code        string
+}
+
+//NewResponse returns a new OAuth2Response
+func NewResponse(clientID, redirectURI, userID, exp, code string) Response {
+	return Response{ClientID: clientID, RedirectURI: redirectURI, UserID: userID, Exp: exp, Code: code}
 }

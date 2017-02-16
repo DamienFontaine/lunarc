@@ -13,8 +13,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
-package controllers
+package web
 
-//DefaultController is a default controller
-type DefaultController struct {
+import (
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	os.Chdir("../testdata")
+	os.Exit(m.Run())
 }

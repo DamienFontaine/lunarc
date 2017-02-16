@@ -15,6 +15,20 @@
 
 package controllers
 
-//DefaultController is a default controller
-type DefaultController struct {
+import "net/http"
+
+//PingController ping.
+type PingController struct {
+}
+
+//NewPingController create a new PingController
+func NewPingController() *PingController {
+	pingController := PingController{}
+	return &pingController
+}
+
+//Ping respond pong
+func (c *PingController) Ping(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("pong"))
+	return
 }
