@@ -47,12 +47,12 @@ func TestHashPassword(t *testing.T) {
 
 func TestGenerateSalt(t *testing.T) {
 	SetUp()
-	salt, err := GenerateSalt()
+	s, err := GenerateSalt()
 	if err != nil {
 		t.Fatalf("Non expected error %v", err)
 	}
-	if len(salt) != 32 {
-		t.Fatalf("Incorrect salt size %v, need %v", len(salt), 32)
+	if len(s) != 32 {
+		t.Fatalf("Incorrect salt size %v, need %v", len(s), 32)
 	}
 }
 
