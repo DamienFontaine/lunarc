@@ -16,6 +16,9 @@
 package web
 
 import (
+	"bufio"
+	"errors"
+	"net"
 	"net/http"
 	"time"
 
@@ -68,6 +71,14 @@ func (w *StatusResponseWriter) Header() http.Header {
 func (w *StatusResponseWriter) Write(data []byte) (int, error) {
 	w.length = len(data)
 	return w.ResponseWriter.Write(data)
+}
+
+//Hijack Satisfy the http.ResponseWriter interface
+func (w *StatusResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := w.ResponseWriter.(http.Hijacker); ok {
+		return hj.Hijack()
+	}
+	return nil, nil, errors.New("Not a Hijacker")
 }
 
 // WriteHeader writes status code
