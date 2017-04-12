@@ -54,9 +54,11 @@ func (c *AuthController) Authenticate(w http.ResponseWriter, r *http.Request) {
 	user, _ = c.UserManager.Get(user.Username, user.Password)
 	if user.Username != "" {
 		token := jwt.New(jwt.GetSigningMethod("HS256"))
-		token.Claims["username"] = user.Username
-		token.Claims["email"] = user.Email
-		token.Claims["exp"] = time.Now().Add(time.Minute * 10).Unix()
+		claims := token.Claims.(jwt.MapClaims)
+
+		claims["username"] = user.Username
+		claims["email"] = user.Email
+		claims["exp"] = time.Now().Add(time.Minute * 10).Unix()
 		tokenString, _ := token.SignedString([]byte(c.cnf.Jwt.Key))
 		data = map[string]string{
 			"id_token": tokenString,
@@ -101,7 +103,8 @@ func (c *OAuth2Controller) Token(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Code is expired")
 	} else {
 		token := jwt.New(jwt.GetSigningMethod("HS256"))
-		token.Claims["exp"] = time.Now().Add(time.Hour * 1).Unix()
+		claims := token.Claims.(jwt.MapClaims)
+		claims["exp"] = time.Now().Add(time.Hour * 1).Unix()
 		tokenString, _ := token.SignedString([]byte(c.cnf.Jwt.Key))
 		data := map[string]string{
 			"access_token": tokenString,
