@@ -21,10 +21,12 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/DamienFontaine/lunarc/mock"
 	"github.com/DamienFontaine/lunarc/security"
 	"github.com/DamienFontaine/lunarc/web"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/golang/mock/gomock"
 )
 
@@ -113,6 +115,31 @@ func TestTokenNormal(t *testing.T) {
 	r, _ := http.NewRequest("POST", fmt.Sprintf("/oauth2/token?grant_type=authorization_code&code=%v", code), nil)
 	w := httptest.NewRecorder()
 	oAuth2Controller.Token(w, r)
+	if strings.Compare(w.Body.String(), "") == 0 {
+		t.Fatal("Must return a token")
+	}
+}
+
+// TestTokenNormal
+func TestRefreshNormal(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	server, _ := web.NewServer("config.yml", "test")
+	mockApplicationManager := mock.NewMockApplicationManager(mockCtrl)
+	oAuth2Controller := security.NewOAuth2Controller(mockApplicationManager, server.Config)
+
+	token := jwt.New(jwt.GetSigningMethod("HS256"))
+	claims := token.Claims.(jwt.MapClaims)
+	claims["exp"] = time.Now().Add(time.Minute * 10).Unix()
+	tokenString, err := token.SignedString([]byte("LunarcSecretKey"))
+	if err != nil {
+		t.Fatalf("Error: %v", err)
+	}
+
+	r, _ := http.NewRequest("POST", fmt.Sprintf("/oauth2/refresh?grant_type=refresh_token&refresh_token=%v", tokenString), nil)
+	w := httptest.NewRecorder()
+	oAuth2Controller.Refresh(w, r)
 	if strings.Compare(w.Body.String(), "") == 0 {
 		t.Fatal("Must return a token")
 	}
