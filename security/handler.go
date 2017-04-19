@@ -17,7 +17,6 @@ package security
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/DamienFontaine/lunarc/web"
@@ -59,7 +58,6 @@ func Oauth2(next http.Handler, cnf web.Config) http.Handler {
 		if err == nil && token.Valid {
 			next.ServeHTTP(w, r)
 		} else {
-			log.Printf("Problem %v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 		}
 	})
