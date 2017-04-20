@@ -17,17 +17,17 @@ package security
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/DamienFontaine/lunarc/web"
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/request"
 )
 
 //TokenHandler manage authorizations
 func TokenHandler(next http.Handler, cnf web.Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := jwt.ParseFromRequest(r, func(token *jwt.Token) (interface{}, error) {
+		token, err := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				//TODO: On ne passe jamais à l'intérieur
 				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
@@ -49,7 +49,7 @@ func TokenHandler(next http.Handler, cnf web.Config) http.Handler {
 //Oauth2 manage authorizations
 func Oauth2(next http.Handler, cnf web.Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := jwt.ParseFromRequest(r, func(token *jwt.Token) (interface{}, error) {
+		token, err := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 			}
@@ -58,7 +58,6 @@ func Oauth2(next http.Handler, cnf web.Config) http.Handler {
 		if err == nil && token.Valid {
 			next.ServeHTTP(w, r)
 		} else {
-			log.Printf("Problem %v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 		}
 	})

@@ -54,9 +54,11 @@ func (c *AuthController) Authenticate(w http.ResponseWriter, r *http.Request) {
 	user, _ = c.UserManager.Get(user.Username, user.Password)
 	if user.Username != "" {
 		token := jwt.New(jwt.GetSigningMethod("HS256"))
-		token.Claims["username"] = user.Username
-		token.Claims["email"] = user.Email
-		token.Claims["exp"] = time.Now().Add(time.Minute * 10).Unix()
+		claims := token.Claims.(jwt.MapClaims)
+
+		claims["username"] = user.Username
+		claims["email"] = user.Email
+		claims["exp"] = time.Now().Add(time.Minute * 10).Unix()
 		tokenString, _ := token.SignedString([]byte(c.cnf.Jwt.Key))
 		data = map[string]string{
 			"id_token": tokenString,
@@ -78,7 +80,41 @@ func NewOAuth2Controller(am ApplicationManager, cnf web.Config) *OAuth2Controlle
 	return &oAuth2Controller
 }
 
-//Token returns a token
+//Refresh returns a new access token
+func (c *OAuth2Controller) Refresh(w http.ResponseWriter, r *http.Request) {
+	grantType := r.URL.Query().Get("grant_type")
+	refreshToken := r.URL.Query().Get("refresh_token")
+	if strings.Compare(grantType, "refresh_token") != 0 {
+		http.Error(w, errors.New("Parameter grant_type is required").Error(), http.StatusBadRequest)
+		return
+	}
+	if strings.Compare(refreshToken, "") == 0 {
+		http.Error(w, errors.New("Parameter refreshToken is required").Error(), http.StatusBadRequest)
+		return
+	}
+	token, err := jwt.Parse(refreshToken, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(c.cnf.Jwt.Key), nil
+	})
+	if err == nil && token.Valid {
+		token := jwt.New(jwt.GetSigningMethod("HS256"))
+		claims := token.Claims.(jwt.MapClaims)
+		claims["exp"] = time.Now().Add(time.Hour * 1).Unix()
+		tokenString, _ := token.SignedString([]byte(c.cnf.Jwt.Key))
+
+		data := map[string]string{
+			"access_token": tokenString,
+			"token_type":   "bearer",
+			"expires_in":   "3600",
+		}
+		js, _ := json.Marshal(data)
+		w.Write(js)
+	}
+}
+
+//Token returns a new access token
 func (c *OAuth2Controller) Token(w http.ResponseWriter, r *http.Request) {
 	grantType := r.URL.Query().Get("grant_type")
 	code := r.URL.Query().Get("code")
@@ -101,11 +137,19 @@ func (c *OAuth2Controller) Token(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Code is expired")
 	} else {
 		token := jwt.New(jwt.GetSigningMethod("HS256"))
-		token.Claims["exp"] = time.Now().Add(time.Hour * 1).Unix()
+		claims := token.Claims.(jwt.MapClaims)
+		claims["exp"] = time.Now().Add(time.Hour * 1).Unix()
 		tokenString, _ := token.SignedString([]byte(c.cnf.Jwt.Key))
+
+		refreshToken := jwt.New(jwt.GetSigningMethod("HS256"))
+		refreshClaims := refreshToken.Claims.(jwt.MapClaims)
+		refreshClaims["exp"] = 0
+		refreshTokenString, _ := refreshToken.SignedString([]byte(c.cnf.Jwt.Key))
 		data := map[string]string{
-			"access_token": tokenString,
-			"token_type":   "bearer",
+			"access_token":  tokenString,
+			"token_type":    "bearer",
+			"refresh_token": refreshTokenString,
+			"expires_in":    "3600",
 		}
 		js, _ := json.Marshal(data)
 		w.Write(js)
