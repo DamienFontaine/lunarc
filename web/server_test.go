@@ -36,6 +36,7 @@ func getHTTPServer(t *testing.T, env string) (s *Server) {
 	}
 	m := s.Handler.(*LoggingServeMux)
 	m.Handle("/", SingleFile("hello.html"))
+
 	return
 }
 
@@ -132,6 +133,7 @@ func TestStartWithSSLNoCertError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error: Le fichier spécifié est introuvable")
 	}
+	<-server.Done
 }
 
 func TestStartWithSSLNoKeyError(t *testing.T) {
@@ -143,6 +145,7 @@ func TestStartWithSSLNoKeyError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error: Le fichier spécifié est introuvable")
 	}
+	<-server.Done
 }
 
 func TestStartWithError(t *testing.T) {
@@ -207,7 +210,7 @@ func TestStopNormal(t *testing.T) {
 
 	go server.Start()
 
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 3)
 
 	resp, err := http.Get("http://localhost:8888/")
 	if err != nil {
@@ -254,7 +257,6 @@ func TestStopUnstarted(t *testing.T) {
 		if err == nil {
 			t.Fatalf("Non expected error")
 		}
-		return
 	}
 }
 
