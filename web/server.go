@@ -16,16 +16,13 @@
 package web
 
 import (
-	"crypto/tls"
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"strings"
-	"syscall"
-
-	"golang.org/x/net/http2"
 
 	"github.com/Sirupsen/logrus"
 	log "github.com/Sirupsen/logrus"
@@ -42,12 +39,11 @@ type IServer interface {
 //Server is a Server with a specialize Context.
 type Server struct {
 	http.Server
-	Config      Config
-	Error       chan error
-	Done        chan bool
-	quit        chan bool
-	interrupt   chan os.Signal
-	connections map[net.Conn]http.ConnState
+	Config    Config
+	Error     chan error
+	Done      chan bool
+	quit      chan bool
+	isStarted bool
 }
 
 //NewServer create a new instance of Server
@@ -70,147 +66,61 @@ func NewServer(filename string, environment string) (server *Server, err error) 
 	}
 	log.SetLevel(level)
 
-	server = &Server{Config: conf, Done: make(chan bool, 1), Error: make(chan error, 1), Server: http.Server{Handler: NewLoggingServeMux(conf)}, quit: make(chan bool)}
+	server = &Server{Config: conf, Done: make(chan bool, 1), Error: make(chan error, 1), Server: http.Server{Handler: NewLoggingServeMux(conf)}, quit: make(chan bool), isStarted: false}
 	return
 }
 
 //Start the server.
 func (s *Server) Start() (err error) {
 	log.Infof("Lunarc is starting on port :%d", s.Config.Port)
+	var l net.Listener
 	go func() {
-		var l net.Listener
-
 		l, err = net.Listen("tcp", fmt.Sprintf(":%d", s.Config.Port))
 		if err != nil {
 			log.Errorf("Error: %v", err)
 			s.Error <- err
 			return
 		}
-
-		// Track connection state
-		add := make(chan net.Conn)
-		active := make(chan net.Conn)
-		idle := make(chan net.Conn)
-		remove := make(chan net.Conn)
-
-		s.ConnState = func(conn net.Conn, state http.ConnState) {
-			switch state {
-			case http.StateNew:
-				add <- conn
-			case http.StateActive:
-				active <- conn
-			case http.StateIdle:
-				idle <- conn
-			case http.StateClosed, http.StateHijacked:
-				remove <- conn
-			}
-		}
-
-		shutdown := make(chan chan struct{})
-		go s.handleConnections(add, active, idle, remove, shutdown)
-		go s.handleInterrupt(l, shutdown)
-
+		s.isStarted = true
 		if len(s.Config.SSL.Certificate) > 0 && len(s.Config.SSL.Key) > 0 {
-			config := tls.Config{}
-
-			config.Certificates = make([]tls.Certificate, 1)
-			config.Certificates[0], err = tls.LoadX509KeyPair(s.Config.SSL.Certificate, s.Config.SSL.Key)
-			if err != nil {
+			err = s.ServeTLS(l, s.Config.SSL.Certificate, s.Config.SSL.Key)
+			if err != nil && err != http.ErrServerClosed {
 				log.Errorf("%v", err)
 				l.Close()
 				s.Error <- err
-				return
+				s.quit <- true
 			}
-
-			s.TLSConfig = &config
-
-			err = http2.ConfigureServer(&s.Server, nil)
-			if err != nil {
-				log.Errorf("%v", err)
-				l.Close()
-				s.Error <- err
-				return
-			}
-			err = s.Serve(tls.NewListener(l, &config))
-			if err != nil {
-				close(s.quit)
-				return
-			}
+			close(s.quit)
 		} else {
 			err = s.Serve(l)
-			if err != nil {
-				close(s.quit)
-				return
+			if err != nil && err != http.ErrServerClosed {
+				log.Errorf("%v", err)
+				s.Error <- err
+				s.quit <- true
 			}
+			close(s.quit)
 		}
 	}()
 
 	<-s.quit
-	s.interrupt <- syscall.SIGINT
-	return
-}
 
-func (s *Server) handleConnections(add, active, idle, remove chan net.Conn, shutdown chan chan struct{}) {
-	var done chan struct{}
-	s.connections = map[net.Conn]http.ConnState{}
-	for {
-		select {
-		case conn := <-add:
-			s.connections[conn] = http.StateNew
-		case conn := <-active:
-			s.connections[conn] = http.StateActive
-		case conn := <-remove:
-			delete(s.connections, conn)
-			if done != nil && len(s.connections) == 0 {
-				done <- struct{}{}
-				return
-			}
-		case conn := <-idle:
-			s.connections[conn] = http.StateIdle
-			if done != nil {
-				conn.Close()
-				if len(s.connections) == 0 {
-					done <- struct{}{}
-				}
-			}
-		case done = <-shutdown:
-			for k, v := range s.connections {
-				if v == http.StateIdle {
-					k.Close()
-					delete(s.connections, k)
-				}
-			}
-			if len(s.connections) == 0 {
-				done <- struct{}{}
-			}
-			return
-		}
+	if err = s.Shutdown(context.Background()); err != nil {
+		log.Errorf("%v", err)
+		s.Error <- err
 	}
-}
 
-func (s *Server) handleInterrupt(listener net.Listener, shutdown chan chan struct{}) {
-	if s.interrupt == nil {
-		s.interrupt = make(chan os.Signal, 1)
-	}
-	<-s.interrupt
-	s.SetKeepAlivesEnabled(false)
-	err := listener.Close()
-	if err != nil {
-		log.Errorf("Error on listener close: %v", err)
-	}
 	<-s.quit
-	done := make(chan struct{})
-	shutdown <- done
-	<-done
-	listener = nil
-	s.interrupt = nil
+
+	l = nil
 	log.Info("Lunarc terminated.")
+	s.isStarted = false
 	s.Done <- true
+	return
 }
 
 //Stop the server.
 func (s *Server) Stop() {
-	if s.interrupt != nil && s.quit != nil {
+	if s.isStarted && s.quit != nil {
 		log.Info("Lunarc is stopping...")
 		s.quit <- true
 	} else {
