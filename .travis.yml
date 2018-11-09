@@ -1,7 +1,10 @@
 language: go
 sudo: false
 go:
-  - 1.9
+  - "1.10.x"
+  - "1.11.x"
+env:
+  - GO111MODULE=on
 services:
   - mongodb
 before_install:
@@ -9,13 +12,28 @@ before_install:
   - go get github.com/modocache/gover
   - go get github.com/mattn/goveralls
   - if ! go get github.com/golang/tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
-script:
-  - go test -coverprofile=config.coverprofile ./config -v
-  - go test -coverprofile=controllers.coverprofile ./controllers -v
-  - go test -tags=integration -coverprofile=mongo.coverprofile ./datasource/mongo -v
-  - go test -coverprofile=security.coverprofile ./security -v
-  - go test -coverprofile=smtp.coverprofile ./smtp -v
-  - go test -coverprofile=utils.coverprofile ./utils -v
-  - go test -coverprofile=web.coverprofile ./web -v
-  - $HOME/gopath/bin/gover
-  - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci
+install: true
+matrix:
+  include:
+  - go: "1.10.x"
+    script:
+    - go test -coverprofile=config.coverprofile ./config -v
+    - go test -coverprofile=controllers.coverprofile ./controllers -v
+    - go test -tags=integration -coverprofile=mongo.coverprofile ./datasource/mongo -v
+    - go test -coverprofile=security.coverprofile ./security -v
+    - go test -coverprofile=smtp.coverprofile ./smtp -v
+    - go test -coverprofile=utils.coverprofile ./utils -v
+    - go test -coverprofile=web.coverprofile ./web -v
+    - $HOME/gopath/bin/gover
+    - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci
+  - go: "1.11.x"
+    script:
+    - go test -coverprofile=config.coverprofile ./config -v -mod=vendor
+    - go test -coverprofile=controllers.coverprofile ./controllers -v -mod=vendor
+    - go test -tags=integration -coverprofile=mongo.coverprofile ./datasource/mongo -v -mod=vendor
+    - go test -coverprofile=security.coverprofile ./security -v -mod=vendor
+    - go test -coverprofile=smtp.coverprofile ./smtp -v -mod=vendor
+    - go test -coverprofile=utils.coverprofile ./utils -v -mod=vendor
+    - go test -coverprofile=web.coverprofile ./web -v -mod=vendor
+    - $HOME/gopath/bin/gover
+    - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci
