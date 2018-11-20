@@ -4,6 +4,8 @@ go:
   - "1.10.x"
   - "1.11.x"
 env:
+  - MONGO_SETTINGS=
+  - MONGO_SETTINGS=--auth
   global:
     - GO111MODULE=on
     - MONGODB_VERSION=3.4.18
@@ -38,7 +40,7 @@ matrix:
   - go: "1.10.x"
     env: MONGO_SETTINGS=--auth
     before_script:
-      - mongorestore -h 127.0.0.1 --port 27017 -d lunarc integration
+      - mongorestore -h 127.0.0.1 --port 27017 -d lunarc testdata/mongo
       - mongo lunarc --eval 'db.createUser({user:"lunarc", pwd:"lunarc", roles:["readWrite"]});'
       - mongod --dbpath=data/db --shutdown
       - sleep 10
@@ -51,7 +53,7 @@ matrix:
   - go: "1.11.x"
     env: MONGO_SETTINGS=--auth
     before_script:
-      - mongorestore -h 127.0.0.1 --port 27017 -d lunarc integration
+      - mongorestore -h 127.0.0.1 --port 27017 -d lunarc testdata/mongo
       - mongo lunarc --eval 'db.createUser({user:"lunarc", pwd:"lunarc", roles:["readWrite"]});'
       - mongod --dbpath=data/db --shutdown
       - sleep 10
@@ -63,6 +65,8 @@ matrix:
       - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci
   - go: "1.11.x"
     env: MONGO_SETTINGS=
+    before_script:
+      - mongorestore -h 127.0.0.1 --port 27017 -d lunarc testdata/mongo
     script:
       - go test -coverprofile=config.coverprofile ./config -v -mod=vendor
       - go test -coverprofile=controllers.coverprofile ./controllers -v -mod=vendor
