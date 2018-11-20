@@ -57,11 +57,19 @@ func NewMongo(filename string, environment string) (*Mongo, error) {
 		log.Printf("L'URI du serveur MongoDB est incorrect: %s", uri)
 		return nil, err
 	}
-	client.Connect(ctx)
+	err = client.Connect(ctx)
 	if err != nil {
 		log.Print("Impossible d'utiliser ce context")
 		return nil, err
 	}
+
+	db := client.Database(cnf.Database)
+	_, err = db.ListCollections(ctx, nil, nil)
+	if err != nil {
+		log.Printf("%v", err)
+		return nil, err
+	}
+
 	err = client.Ping(ctx, nil)
 	if err != nil {
 		log.Printf("Impossible de contacter %v sur le port %d", cnf.Host, cnf.Port)
