@@ -48,7 +48,7 @@ matrix:
       - mongod --dbpath=data/db $MONGO_SETTINGS  &
       - sleep 3
     script:
-      - go test -tags=authentication -coverprofile=mongo.coverprofile ./datasource/mongo -v -mod=vendor
+      - go test -tags=authentication -coverprofile=mongo.coverprofile ./datasource/mongo -v
       - $HOME/gopath/bin/gover
       - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci
   - go: "1.11.x"
