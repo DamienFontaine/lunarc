@@ -4,8 +4,9 @@ go:
   - "1.10.x"
   - "1.11.x"
 env:
-  - MONGO_SETTINGS=
-  - MONGO_SETTINGS=--auth
+  matrix:
+    - MONGO_SETTINGS=
+    - MONGO_SETTINGS=--auth
   global:
     - GO111MODULE=on
     - MONGODB_VERSION=3.4.18
