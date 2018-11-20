@@ -106,9 +106,8 @@ stagingMongoCredential:
     port: 27017
     host: 127.0.0.1
     database: lunarc
-    credential:
-      username: lunarc
-      password: lunarc
+    username: lunarc
+    password: lunarc
 stagingMongoBadCredential:
   server:
     port: 8888
@@ -124,9 +123,8 @@ stagingMongoBadCredential:
     port: 27017
     host: 127.0.0.1
     database: lunarc
-    credential:
-      username: lunarc
-      password: lunar
+    username: lunarc
+    password: lunar
 stagingBadPort:
   server:
     port: 8888

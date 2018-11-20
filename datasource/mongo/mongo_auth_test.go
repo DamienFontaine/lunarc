@@ -1,4 +1,4 @@
-// +build integration
+// +build authentication
 
 // Copyright (c) - Damien Fontaine <damien.fontaine@lineolia.net>
 //
@@ -27,33 +27,22 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestNewMongoNormal(t *testing.T) {
-	mongo, err := NewMongo("config.yml", "staging")
+func TestNewMongoWithCredentials(t *testing.T) {
+	mongo, err := NewMongo("config.yml", "stagingMongoCredential")
 	if err != nil {
 		t.Fatalf("NewMongo must realize a success connection but %v", err)
 	}
 	if mongo.Client == nil {
-		t.Fatalf("NewMongo must have a session")
+		t.Fatalf("NewMongo must have a client")
 	}
 }
 
-func TestDisconnectNormal(t *testing.T) {
-	mongo, err := NewMongo("config.yml", "staging")
-	if err != nil {
-		t.Fatalf("NewMongo must realize a success connection but %v", err)
-	}
-	err = mongo.Disconnect()
-	if err != nil {
-		t.Fatalf("Mongo must disconnect but %v", err)
-	}
-}
-
-func TestNewMongoWithBadPort(t *testing.T) {
-	mongo, err := NewMongo("config.yml", "stagingBadPort")
+func TestNewMongoWithBadCredentials(t *testing.T) {
+	mongo, err := NewMongo("config.yml", "stagingMongoBadCredential")
 	if err == nil {
 		t.Fatalf("NewMongo must'nt realize a success connection")
 	}
 	if mongo != nil {
-		t.Fatalf("NewMongo must return nil")
+		t.Fatalf("NewMongo must'nt have a session")
 	}
 }

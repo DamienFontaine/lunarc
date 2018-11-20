@@ -16,49 +16,66 @@
 package mongo
 
 import (
+	"context"
 	"fmt"
 	"log"
 
-	"gopkg.in/mgo.v2"
+	"github.com/mongodb/mongo-go-driver/mongo"
 )
 
 //Mongo is a datasource.
 type Mongo struct {
-	Session  *mgo.Session
-	Database *mgo.Database
+	Client  *mongo.Client
+	context context.Context
 }
 
 //NewMongo creates a newinstance of Mongo
 func NewMongo(filename string, environment string) (*Mongo, error) {
+	ctx := context.Background()
 	cnf, err := GetMongo(filename, environment)
 	if err != nil {
 		return nil, err
 	}
-	session, err := mgo.Dial(fmt.Sprintf("%v:%d", cnf.Host, cnf.Port))
+	var uri string
+	if len(cnf.Username) > 0 && len(cnf.Password) > 0 {
+		uri = fmt.Sprintf(`mongodb://%s:%s@%s:%d/%s`,
+			cnf.Username,
+			cnf.Password,
+			cnf.Host,
+			cnf.Port,
+			cnf.Database,
+		)
+	} else {
+		uri = fmt.Sprintf(`mongodb://%s:%d/%s`,
+			cnf.Host,
+			cnf.Port,
+			cnf.Database,
+		)
+	}
+	client, err := mongo.NewClient(uri)
+	if err != nil {
+		log.Printf("L'URI du serveur MongoDB est incorrect: %s", uri)
+		return nil, err
+	}
+	client.Connect(ctx)
+	if err != nil {
+		log.Print("Impossible d'utiliser ce context")
+		return nil, err
+	}
+	err = client.Ping(ctx, nil)
 	if err != nil {
 		log.Printf("Impossible de contacter %v sur le port %d", cnf.Host, cnf.Port)
 		return nil, err
 	}
-	if cnf.Credential != nil {
-		if len(cnf.Credential.Username) > 0 && len(cnf.Credential.Password) > 0 {
-			err = session.Login(cnf.Credential)
-			if err != nil {
-				log.Println("Impossible de s'identifier à MongoDB")
-				return nil, err
-			}
-		}
+	return &Mongo{Client: client, context: ctx}, nil
+}
+
+//Disconnect a Mongo client
+func (m *Mongo) Disconnect() error {
+	err := m.Client.Disconnect(m.context)
+	if err != nil {
+		log.Printf("Impossible de fermer la connexion")
+		return err
 	}
-	session.SetMode(mgo.Monotonic, true)
-	return &Mongo{Session: session, Database: session.DB(cnf.Database)}, nil
-}
-
-//Copy retourne une cope de la session
-func (m *Mongo) Copy() *Mongo {
-	copy := m.Session.Copy()
-	return &Mongo{Session: copy, Database: m.Database}
-}
-
-//Close a Mongo session
-func (m *Mongo) Close() {
-	m.Session.Close()
+	return nil
 }

@@ -4,36 +4,72 @@ go:
   - "1.10.x"
   - "1.11.x"
 env:
-  - GO111MODULE=on
-services:
-  - mongodb
+  global:
+    - GO111MODULE=on
+    - MONGODB_VERSION=3.4.18
 before_install:
   - go get github.com/axw/gocov/gocov
   - go get github.com/modocache/gover
   - go get github.com/mattn/goveralls
   - if ! go get github.com/golang/tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
-install: true
+install:
+  - wget http://fastdl.mongodb.org/linux/mongodb-linux-x86_64-$MONGODB_VERSION.tgz
+  - tar xfz mongodb-linux-x86_64-$MONGODB_VERSION.tgz
+  - export PATH=`pwd`/mongodb-linux-x86_64-$MONGODB_VERSION/bin:$PATH
+  - mkdir -p data/db
+  - mongod --dbpath=data/db &
+  - sleep 3
 matrix:
   include:
   - go: "1.10.x"
+    env: MONGO_SETTINGS=
+    before_script:
+      - mongorestore -h 127.0.0.1 --port 27017 -d lunarc testdata/mongo
     script:
-    - go test -coverprofile=config.coverprofile ./config -v
-    - go test -coverprofile=controllers.coverprofile ./controllers -v
-    - go test -tags=integration -coverprofile=mongo.coverprofile ./datasource/mongo -v
-    - go test -coverprofile=security.coverprofile ./security -v
-    - go test -coverprofile=smtp.coverprofile ./smtp -v
-    - go test -coverprofile=utils.coverprofile ./utils -v
-    - go test -coverprofile=web.coverprofile ./web -v
-    - $HOME/gopath/bin/gover
-    - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci
+      - go test -coverprofile=config.coverprofile ./config -v
+      - go test -coverprofile=controllers.coverprofile ./controllers -v
+      - go test -tags=integration -coverprofile=mongo.coverprofile ./datasource/mongo -v
+      - go test -coverprofile=security.coverprofile ./security -v
+      - go test -coverprofile=smtp.coverprofile ./smtp -v
+      - go test -coverprofile=utils.coverprofile ./utils -v
+      - go test -coverprofile=web.coverprofile ./web -v
+      - $HOME/gopath/bin/gover
+      - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci
+  - go: "1.10.x"
+    env: MONGO_SETTINGS=--auth
+    before_script:
+      - mongorestore -h 127.0.0.1 --port 27017 -d lunarc integration
+      - mongo lunarc --eval 'db.createUser({user:"lunarc", pwd:"lunarc", roles:["readWrite"]});'
+      - mongod --dbpath=data/db --shutdown
+      - sleep 10
+      - mongod --dbpath=data/db $MONGO_SETTINGS  &
+      - sleep 3
+    script:
+      - go test -tags=authentication -coverprofile=mongo.coverprofile ./datasource/mongo -v -mod=vendor
+      - $HOME/gopath/bin/gover
+      - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci
   - go: "1.11.x"
+    env: MONGO_SETTINGS=--auth
+    before_script:
+      - mongorestore -h 127.0.0.1 --port 27017 -d lunarc integration
+      - mongo lunarc --eval 'db.createUser({user:"lunarc", pwd:"lunarc", roles:["readWrite"]});'
+      - mongod --dbpath=data/db --shutdown
+      - sleep 10
+      - mongod --dbpath=data/db $MONGO_SETTINGS  &
+      - sleep 3
     script:
-    - go test -coverprofile=config.coverprofile ./config -v -mod=vendor
-    - go test -coverprofile=controllers.coverprofile ./controllers -v -mod=vendor
-    - go test -tags=integration -coverprofile=mongo.coverprofile ./datasource/mongo -v -mod=vendor
-    - go test -coverprofile=security.coverprofile ./security -v -mod=vendor
-    - go test -coverprofile=smtp.coverprofile ./smtp -v -mod=vendor
-    - go test -coverprofile=utils.coverprofile ./utils -v -mod=vendor
-    - go test -coverprofile=web.coverprofile ./web -v -mod=vendor
-    - $HOME/gopath/bin/gover
-    - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci
+      - go test -tags=authentication -coverprofile=mongo.coverprofile ./datasource/mongo -v -mod=vendor
+      - $HOME/gopath/bin/gover
+      - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci
+  - go: "1.11.x"
+    env: MONGO_SETTINGS=
+    script:
+      - go test -coverprofile=config.coverprofile ./config -v -mod=vendor
+      - go test -coverprofile=controllers.coverprofile ./controllers -v -mod=vendor
+      - go test -tags=integration -coverprofile=mongo.coverprofile ./datasource/mongo -v -mod=vendor
+      - go test -coverprofile=security.coverprofile ./security -v -mod=vendor
+      - go test -coverprofile=smtp.coverprofile ./smtp -v -mod=vendor
+      - go test -coverprofile=utils.coverprofile ./utils -v -mod=vendor
+      - go test -coverprofile=web.coverprofile ./web -v -mod=vendor
+      - $HOME/gopath/bin/gover
+      - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci

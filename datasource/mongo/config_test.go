@@ -35,9 +35,8 @@ func TestGetMongoEnvironmentNormal(t *testing.T) {
       port: 27017
       host: localhost
       database: test
-      credential:
-        username: lunarc
-        password: lunarc
+      username: lunarc
+      password: lunarc
   test:
     server:
       port: 8888
@@ -58,7 +57,7 @@ func TestGetMongoEnvironmentNormal(t *testing.T) {
       database: test
   `
 
-	var mongoEnvironment MongoEnvironment
+	var mongoEnvironment Environment
 	err := yaml.Unmarshal([]byte(data), &mongoEnvironment)
 	if err != nil {
 		t.Fatalf("Non expected error %v", err)
@@ -85,7 +84,7 @@ func TestMongoEnvironment(t *testing.T) {
       host: mongo
       database: test
   `
-	var mongoEnvironment MongoEnvironment
+	var mongoEnvironment Environment
 	_ = yaml.Unmarshal([]byte(data), &mongoEnvironment)
 	var i interface{} = &mongoEnvironment
 	_, ok := i.(config.Environment)
@@ -102,9 +101,8 @@ func TestGetMongoNormal(t *testing.T) {
       port: 27017
       host: mongo
       database: test
-      credential:
-        username: lunarc
-        password: lunarc
+      username: lunarc
+      password: lunarc
   `
 	mongo, err := GetMongo([]byte(data), "development")
 	if err != nil {
@@ -119,10 +117,10 @@ func TestGetMongoNormal(t *testing.T) {
 	if strings.Compare(mongo.Database, "test") != 0 {
 		t.Fatalf("Must return a Mongo with Database mongo not %v", mongo.Database)
 	}
-	if strings.Compare(mongo.Credential.Username, "lunarc") != 0 {
-		t.Fatalf("Must return a Mongo with username credential lunarc not %v", mongo.Credential.Username)
+	if strings.Compare(mongo.Username, "lunarc") != 0 {
+		t.Fatalf("Must return a Mongo with username credential lunarc not %v", mongo.Username)
 	}
-	if strings.Compare(mongo.Credential.Password, "lunarc") != 0 {
-		t.Fatalf("Must return a Mongo with password credential lunarc not %v", mongo.Credential.Password)
+	if strings.Compare(mongo.Password, "lunarc") != 0 {
+		t.Fatalf("Must return a Mongo with password credential lunarc not %v", mongo.Password)
 	}
 }
