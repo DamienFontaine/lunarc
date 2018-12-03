@@ -19,25 +19,24 @@ import (
 	"strings"
 
 	"github.com/DamienFontaine/lunarc/config"
-
-	"gopkg.in/mgo.v2"
 )
 
 //Config of Mongo
 type Config struct {
-	Port       int
-	Host       string
-	Database   string
-	Credential *mgo.Credential
+	Port     int
+	Host     string
+	Database string
+	Username string
+	Password string
 }
 
-//MongoEnvironment configurations
-type MongoEnvironment struct {
+//Environment configurations
+type Environment struct {
 	Env map[string]Config
 }
 
 //UnmarshalYAML implements Unmarshaler. Avoid use of env in the YAML file.
-func (m *MongoEnvironment) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (m *Environment) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var aux struct {
 		Env map[string]struct {
 			Config `yaml:"mongo"`
@@ -54,7 +53,7 @@ func (m *MongoEnvironment) UnmarshalYAML(unmarshal func(interface{}) error) erro
 }
 
 //GetEnvironment returns a Mongo configuration for the specified environment in parameter
-func (m *MongoEnvironment) GetEnvironment(environment string) interface{} {
+func (m *Environment) GetEnvironment(environment string) interface{} {
 	for env, conf := range m.Env {
 		if strings.Compare(environment, env) == 0 {
 			return conf
@@ -65,8 +64,8 @@ func (m *MongoEnvironment) GetEnvironment(environment string) interface{} {
 
 //GetMongo returns a Mongo configurations
 func GetMongo(source interface{}, environment string) (mongo Config, err error) {
-	var mongoEnvironment MongoEnvironment
-	i, err := config.Get(source, environment, &mongoEnvironment)
+	var env Environment
+	i, err := config.Get(source, environment, &env)
 	mongo = i.(Config)
 	return
 }

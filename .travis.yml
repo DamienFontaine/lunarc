@@ -1,21 +1,49 @@
 language: go
 sudo: false
 go:
-  - 1.9
-services:
-  - mongodb
+  - "1.10.x"
+  - "1.11.x"
+env:
+  matrix:
+    - MONGO_SETTINGS=
+    - MONGO_SETTINGS=--auth
+  global:
+    - GO111MODULE=on
+    - GO_MOD=
+    - MONGODB_VERSION=3.4.18
 before_install:
   - go get github.com/axw/gocov/gocov
   - go get github.com/modocache/gover
   - go get github.com/mattn/goveralls
   - if ! go get github.com/golang/tools/cmd/cover; then go get golang.org/x/tools/cmd/cover; fi
+install:
+  - wget http://fastdl.mongodb.org/linux/mongodb-linux-x86_64-$MONGODB_VERSION.tgz
+  - tar xfz mongodb-linux-x86_64-$MONGODB_VERSION.tgz
+  - export PATH=`pwd`/mongodb-linux-x86_64-$MONGODB_VERSION/bin:$PATH
+  - mkdir -p data/db
+  - mongod --dbpath=data/db --fork --logpath mongodb.log
+  - sleep 3
+before_script:
+  - mongorestore -h 127.0.0.1 --port 27017 -d lunarc testdata/mongo
+  - if [[ ${MONGO_SETTINGS} = "--auth" ]]; then
+      mongo lunarc --eval 'db.createUser({user:"lunarc", pwd:"lunarc", roles:["readWrite"]})';
+      mongod --dbpath=data/db --shutdown;
+      sleep 10;
+      mongod --dbpath=data/db "$MONGO_SETTINGS" --fork --logpath mongodb.log;
+      sleep 3;
+    fi
 script:
-  - go test -coverprofile=config.coverprofile ./config -v
-  - go test -coverprofile=controllers.coverprofile ./controllers -v
-  - go test -tags=integration -coverprofile=mongo.coverprofile ./datasource/mongo -v
-  - go test -coverprofile=security.coverprofile ./security -v
-  - go test -coverprofile=smtp.coverprofile ./smtp -v
-  - go test -coverprofile=utils.coverprofile ./utils -v
-  - go test -coverprofile=web.coverprofile ./web -v
+  - if [[ ${TRAVIS_GO_VERSION} =~ ^1\.11 ]]; then export GO_MOD="-mod=vendor";fi
+  - if [[ ${MONGO_SETTINGS} = "--auth" ]]; then
+      go test -tags=authentication -coverprofile=mongo.coverprofile ./datasource/mongo -v "$GO_MOD";
+    else
+      go test -tags=integration -coverprofile=mongo.coverprofile ./datasource/mongo -v "$GO_MOD";
+    fi
+  - go test -coverprofile=smtp.coverprofile ./smtp -v "$GO_MOD"
+  - go test -coverprofile=utils.coverprofile ./utils -v "$GO_MOD"
+  - go test -coverprofile=web.coverprofile ./web -v "$GO_MOD"
+  - go test -coverprofile=security.coverprofile ./security -v "$GO_MOD"
+  - go test -coverprofile=config.coverprofile ./config -v "$GO_MOD"
+  - go test -coverprofile=controllers.coverprofile ./controllers -v "$GO_MOD"
   - $HOME/gopath/bin/gover
   - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service=travis-ci

@@ -1,0 +1,97 @@
+# github.com/Sirupsen/logrus v0.11.5
+github.com/Sirupsen/logrus
+github.com/Sirupsen/logrus/hooks/test
+# github.com/dgrijalva/jwt-go v3.2.0+incompatible
+github.com/dgrijalva/jwt-go
+github.com/dgrijalva/jwt-go/request
+# github.com/go-stack/stack v1.8.0
+github.com/go-stack/stack
+# github.com/golang/mock v1.1.1
+github.com/golang/mock/gomock
+# github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db
+github.com/golang/snappy
+# github.com/mongodb/mongo-go-driver v0.0.17
+github.com/mongodb/mongo-go-driver/mongo
+github.com/mongodb/mongo-go-driver/bson
+github.com/mongodb/mongo-go-driver/bson/bsoncodec
+github.com/mongodb/mongo-go-driver/bson/objectid
+github.com/mongodb/mongo-go-driver/core/command
+github.com/mongodb/mongo-go-driver/core/connstring
+github.com/mongodb/mongo-go-driver/core/description
+github.com/mongodb/mongo-go-driver/core/dispatch
+github.com/mongodb/mongo-go-driver/core/option
+github.com/mongodb/mongo-go-driver/core/readconcern
+github.com/mongodb/mongo-go-driver/core/readpref
+github.com/mongodb/mongo-go-driver/core/result
+github.com/mongodb/mongo-go-driver/core/session
+github.com/mongodb/mongo-go-driver/core/tag
+github.com/mongodb/mongo-go-driver/core/topology
+github.com/mongodb/mongo-go-driver/core/uuid
+github.com/mongodb/mongo-go-driver/core/writeconcern
+github.com/mongodb/mongo-go-driver/mongo/aggregateopt
+github.com/mongodb/mongo-go-driver/mongo/bulkwriteopt
+github.com/mongodb/mongo-go-driver/mongo/changestreamopt
+github.com/mongodb/mongo-go-driver/mongo/clientopt
+github.com/mongodb/mongo-go-driver/mongo/collectionopt
+github.com/mongodb/mongo-go-driver/mongo/countopt
+github.com/mongodb/mongo-go-driver/mongo/dbopt
+github.com/mongodb/mongo-go-driver/mongo/deleteopt
+github.com/mongodb/mongo-go-driver/mongo/distinctopt
+github.com/mongodb/mongo-go-driver/mongo/dropcollopt
+github.com/mongodb/mongo-go-driver/mongo/findopt
+github.com/mongodb/mongo-go-driver/mongo/indexopt
+github.com/mongodb/mongo-go-driver/mongo/insertopt
+github.com/mongodb/mongo-go-driver/mongo/listcollectionopt
+github.com/mongodb/mongo-go-driver/mongo/listdbopt
+github.com/mongodb/mongo-go-driver/mongo/mongoopt
+github.com/mongodb/mongo-go-driver/mongo/replaceopt
+github.com/mongodb/mongo-go-driver/mongo/runcmdopt
+github.com/mongodb/mongo-go-driver/mongo/sessionopt
+github.com/mongodb/mongo-go-driver/mongo/transactionopt
+github.com/mongodb/mongo-go-driver/mongo/updateopt
+github.com/mongodb/mongo-go-driver/bson/bsoncore
+github.com/mongodb/mongo-go-driver/bson/bsonrw
+github.com/mongodb/mongo-go-driver/bson/bsontype
+github.com/mongodb/mongo-go-driver/bson/decimal
+github.com/mongodb/mongo-go-driver/bson/elements
+github.com/mongodb/mongo-go-driver/bson/parser
+github.com/mongodb/mongo-go-driver/bson/parser/ast
+github.com/mongodb/mongo-go-driver/core/address
+github.com/mongodb/mongo-go-driver/core/version
+github.com/mongodb/mongo-go-driver/core/wiremessage
+github.com/mongodb/mongo-go-driver/internal
+github.com/mongodb/mongo-go-driver/core/auth
+github.com/mongodb/mongo-go-driver/core/compressor
+github.com/mongodb/mongo-go-driver/core/connection
+github.com/mongodb/mongo-go-driver/core/event
+github.com/mongodb/mongo-go-driver/core/auth/internal/gssapi
+# github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
+github.com/xdg/scram
+# github.com/xdg/stringprep v1.0.0
+github.com/xdg/stringprep
+# golang.org/x/crypto v0.0.0-20181106171534-e4dc69e5b2fd
+golang.org/x/crypto/scrypt
+golang.org/x/crypto/pbkdf2
+golang.org/x/crypto/ed25519
+golang.org/x/crypto/ed25519/internal/edwards25519
+# golang.org/x/net v0.0.0-20181108082009-03003ca0c849
+golang.org/x/net/context
+golang.org/x/net/http2
+golang.org/x/net/http/httpguts
+golang.org/x/net/http2/hpack
+golang.org/x/net/idna
+# golang.org/x/sync v0.0.0-20181108010431-42b317875d0f
+golang.org/x/sync/semaphore
+# golang.org/x/sys v0.0.0-20181107165924-66b7b1311ac8
+golang.org/x/sys/unix
+# golang.org/x/text v0.3.0
+golang.org/x/text/secure/bidirule
+golang.org/x/text/unicode/bidi
+golang.org/x/text/unicode/norm
+golang.org/x/text/transform
+# gopkg.in/square/go-jose.v2 v2.1.9
+gopkg.in/square/go-jose.v2
+gopkg.in/square/go-jose.v2/cipher
+gopkg.in/square/go-jose.v2/json
+# gopkg.in/yaml.v2 v2.2.1
+gopkg.in/yaml.v2
