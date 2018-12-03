@@ -30,7 +30,7 @@ before_script:
       mongod --dbpath=data/db --shutdown;
       sleep 10;
       mongod --dbpath=data/db "$MONGO_SETTINGS" --fork --logpath mongodb.log;
-      sleep 3
+      sleep 3;
     fi
 script:
   - if [[ ${TRAVIS_GO_VERSION} =~ ^1\.11 ]]; then export GO_MOD="-mod=vendor";fi
