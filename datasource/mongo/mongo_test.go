@@ -35,6 +35,9 @@ func TestNewMongoNormal(t *testing.T) {
 	if mongo.Client == nil {
 		t.Fatalf("NewMongo must have a session")
 	}
+	if mongo.Database == nil {
+		t.Fatalf("NewMongo must have a Database")
+	}
 }
 
 func TestDisconnectNormal(t *testing.T) {
