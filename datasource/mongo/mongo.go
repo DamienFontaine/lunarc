@@ -25,8 +25,9 @@ import (
 
 //Mongo is a datasource.
 type Mongo struct {
-	Client  *mongo.Client
-	context context.Context
+	Client   *mongo.Client
+	Database *mongo.Database
+	context  context.Context
 }
 
 //NewMongo creates a newinstance of Mongo
@@ -75,7 +76,7 @@ func NewMongo(filename string, environment string) (*Mongo, error) {
 		log.Printf("Impossible de contacter %v sur le port %d", cnf.Host, cnf.Port)
 		return nil, err
 	}
-	return &Mongo{Client: client, context: ctx}, nil
+	return &Mongo{Client: client, Database: db, context: ctx}, nil
 }
 
 //Disconnect a Mongo client

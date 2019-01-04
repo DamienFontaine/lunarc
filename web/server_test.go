@@ -17,7 +17,10 @@ package web
 
 import (
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -40,15 +43,14 @@ func getHTTPServer(t *testing.T, env string) (s *Server) {
 	return
 }
 
-func TestNewServerWithNoLog(t *testing.T) {
-	server := getHTTPServer(t, "testNoLog")
-
-	if server.Config.Port != 8888 {
-		t.Fatalf("Non expected server port: %v != %v", 8888, server.Config.Port)
+func GetLoggingHTTPServer(t *testing.T, env string) (s *Server) {
+	s, err := NewServer("config.yml", env)
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
 	}
-	if server.Config.Jwt.Key != "LunarcSecretKey" {
-		t.Fatalf("Non expected server Jwt secret key: %v != %v", "LunarcSecretKey", server.Config.Jwt.Key)
-	}
+	m := s.Handler.(*LoggingServeMux)
+	m.Handle("/", SingleFile("hello.html"))
+	return
 }
 
 func TestNewServer(t *testing.T) {
@@ -62,6 +64,60 @@ func TestNewServer(t *testing.T) {
 	}
 }
 
+func TestNewServerWithNoLog(t *testing.T) {
+	server := getHTTPServer(t, "testNoLog")
+
+	if server.Config.Port != 8888 {
+		t.Fatalf("Non expected server port: %v != %v", 8888, server.Config.Port)
+	}
+	if server.Config.Jwt.Key != "LunarcSecretKey" {
+		t.Fatalf("Non expected server Jwt secret key: %v != %v", "LunarcSecretKey", server.Config.Jwt.Key)
+	}
+}
+
+func TestNewLoggingServeMux(t *testing.T) {
+	server := GetLoggingHTTPServer(t, "test")
+
+	hook := test.NewGlobal()
+	go server.Start()
+	time.Sleep(time.Second * 3)
+	errs := make(chan error, 1)
+
+	go func() {
+		_, err := http.Get("http://localhost:8888/")
+
+		time.Sleep(time.Second * 1)
+
+		if err != nil {
+			errs <- err
+			return
+		}
+		go server.Stop()
+	}()
+
+	select {
+	case <-server.Done:
+		if len(hook.Entries) != 3 {
+			for _, entry := range hook.Entries {
+				log.Printf("Entry: %v", entry)
+			}
+			t.Fatalf("Must return 3 but : %d", len(hook.Entries))
+		}
+	case err := <-errs:
+		go server.Stop()
+		<-server.Done
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	case err := <-server.Error:
+		go server.Stop()
+		<-server.Done
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	}
+}
+
 func TestStart(t *testing.T) {
 	server := getHTTPServer(t, "test")
 
@@ -69,23 +125,44 @@ func TestStart(t *testing.T) {
 
 	time.Sleep(time.Second * 3)
 
-	resp, err := http.Get("http://localhost:8888/")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	errs := make(chan error, 1)
 
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	go func() {
+		resp, err := http.Get("http://localhost:8888/")
+		if err != nil {
+			errs <- err
+			return
+		}
 
-	if !strings.Contains(string(body), "Lunarc") {
-		t.Fatalf("Body must contain Lunarc word but : %v", body)
-	}
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			errs <- err
+			return
+		}
 
-	go server.Stop()
-	<-server.Done
+		if !strings.Contains(string(body), "Lunarc") {
+			errs <- fmt.Errorf("Body must contain Lunarc word but : %v", body)
+			return
+		}
+		go server.Stop()
+	}()
+
+	select {
+	case <-server.Done:
+	case err := <-errs:
+		go server.Stop()
+		<-server.Done
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	case err := <-server.Error:
+		go server.Stop()
+		<-server.Done
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	}
 }
 
 func TestStartWithSSLNormal(t *testing.T) {
@@ -95,33 +172,115 @@ func TestStartWithSSLNormal(t *testing.T) {
 
 	time.Sleep(time.Second * 3)
 
-	client := &http.Client{Transport: &http2.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true, NextProtos: []string{"h2"}}}}
+	errs := make(chan error, 1)
 
-	response, err := client.Get("https://localhost:8888/")
+	go func() {
+		client := &http.Client{Transport: &http2.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true, NextProtos: []string{"h2"}}}}
+
+		response, err := client.Get("https://localhost:8888/")
+		if err != nil {
+			errs <- err
+			return
+		}
+
+		if response.TLS == nil {
+			errs <- errors.New("This connection must be in HTTPS")
+			return
+		}
+
+		if strings.Compare(response.Proto, "HTTP/2.0") != 0 {
+			errs <- fmt.Errorf("Must use HTTP/2 but use : %v", response.Proto)
+			return
+		}
+
+		defer response.Body.Close()
+		body, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			errs <- err
+			return
+		}
+
+		if !strings.Contains(string(body), "Lunarc") {
+			errs <- fmt.Errorf("Body must contain Lunarc word but : %v", body)
+			return
+		}
+
+		go server.Stop()
+	}()
+
+	select {
+	case <-server.Done:
+	case err := <-errs:
+		go server.Stop()
+		<-server.Done
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	case err := <-server.Error:
+		go server.Stop()
+		<-server.Done
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	}
+}
+
+func TestStopNormal(t *testing.T) {
+	server := getHTTPServer(t, "test")
+
+	go server.Start()
+
+	time.Sleep(time.Second * 3)
+
+	errs := make(chan error, 1)
+
+	go func() {
+		resp, err := http.Get("http://localhost:8888/")
+		if err != nil {
+			errs <- err
+			return
+		}
+
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			errs <- err
+			return
+		}
+
+		if !strings.Contains(string(body), "Lunarc") {
+			errs <- fmt.Errorf("Body must contain Lunarc word but : %v", body)
+			return
+		}
+		go server.Stop()
+	}()
+
+	select {
+	case <-server.Done:
+	case err := <-errs:
+		go server.Stop()
+		<-server.Done
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	case err := <-server.Error:
+		go server.Stop()
+		<-server.Done
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+	}
+
+	resp, err := http.Get("http://localhost:8888/")
+	if err == nil {
+		t.Fatalf("Error expected: Not Found: %v", resp)
+	}
+
+	l, err := net.Listen("tcp", ":8888")
 	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
+		t.Fatalf("Error : %v", err)
 	}
-
-	if response.TLS == nil {
-		t.Fatalf("This connection must be in HTTPS")
-	}
-
-	if strings.Compare(response.Proto, "HTTP/2.0") != 0 {
-		t.Fatalf("Must use HTTP/2 but use : %v", response.Proto)
-	}
-
-	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	if !strings.Contains(string(body), "Lunarc") {
-		t.Fatalf("Body must contain Lunarc word but : %v", body)
-	}
-
-	go server.Stop()
-	<-server.Done
+	defer l.Close()
 }
 
 func TestStartWithSSLNoCertError(t *testing.T) {
@@ -205,44 +364,6 @@ func TestStartWithSSLAndError(t *testing.T) {
 	<-done
 }
 
-func TestStopNormal(t *testing.T) {
-	server := getHTTPServer(t, "test")
-
-	go server.Start()
-
-	time.Sleep(time.Second * 3)
-
-	resp, err := http.Get("http://localhost:8888/")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	if !strings.Contains(string(body), "Lunarc") {
-		t.Fatalf("Body must contain Lunarc word but : %v", body)
-	}
-
-	go server.Stop()
-	<-server.Done
-
-	resp, err = http.Get("http://localhost:8888/")
-	if err == nil {
-		t.Fatalf("Error expected: Not Found: %v", resp)
-	}
-
-	l, err := net.Listen("tcp", ":8888")
-	if err != nil {
-		t.Fatalf("Error : %v", err)
-	}
-	defer l.Close()
-	go http.Serve(l, nil)
-}
-
 func TestStopUnstarted(t *testing.T) {
 	server := getHTTPServer(t, "test")
 
@@ -258,32 +379,4 @@ func TestStopUnstarted(t *testing.T) {
 			t.Fatalf("Non expected error")
 		}
 	}
-}
-
-func GetLoggingHTTPServer(t *testing.T, env string) (s *Server) {
-	s, err := NewServer("config.yml", env)
-	if err != nil {
-		t.Fatalf("Non expected error: %v", err)
-	}
-	return
-}
-
-func TestNewLoggingServeMux(t *testing.T) {
-	server := GetLoggingHTTPServer(t, "test")
-
-	go server.Start()
-
-	hook := test.NewGlobal()
-
-	_, err := http.Get("http://localhost:8888/")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	if len(hook.Entries) != 1 {
-		t.Fatalf("Must return 1 but : %d", len(hook.Entries))
-	}
-
-	go server.Stop()
-	<-server.Done
 }
