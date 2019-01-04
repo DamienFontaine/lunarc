@@ -17,6 +17,7 @@ package web
 
 import (
 	"crypto/tls"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -66,16 +67,18 @@ func TestNewLoggingServeMux(t *testing.T) {
 
 	go server.Start()
 
+	errs := make(chan error, 1)
+
 	go func() {
 		hook := test.NewGlobal()
 
 		_, err := http.Get("http://localhost:8888/")
 		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
+			errs <- err
 		}
 
 		if len(hook.Entries) != 1 {
-			t.Fatalf("Must return 1 but : %d", len(hook.Entries))
+			errs <- fmt.Errorf("Must return 1 but : %d", len(hook.Entries))
 		}
 
 		go server.Stop()
@@ -83,6 +86,10 @@ func TestNewLoggingServeMux(t *testing.T) {
 
 	select {
 	case <-server.Done:
+	case err := <-errs:
+		if err == nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 	case err := <-server.Error:
 		if err == nil {
 			t.Fatalf("Unexpected error: %v", err)
