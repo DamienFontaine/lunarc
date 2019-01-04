@@ -40,6 +40,16 @@ func getHTTPServer(t *testing.T, env string) (s *Server) {
 	return
 }
 
+func GetLoggingHTTPServer(t *testing.T, env string) (s *Server) {
+	s, err := NewServer("config.yml", env)
+	if err != nil {
+		t.Fatalf("Non expected error: %v", err)
+	}
+	m := s.Handler.(*LoggingServeMux)
+	m.Handle("/", SingleFile("hello.html"))
+	return
+}
+
 func TestNewServerWithNoLog(t *testing.T) {
 	server := getHTTPServer(t, "testNoLog")
 
@@ -48,6 +58,35 @@ func TestNewServerWithNoLog(t *testing.T) {
 	}
 	if server.Config.Jwt.Key != "LunarcSecretKey" {
 		t.Fatalf("Non expected server Jwt secret key: %v != %v", "LunarcSecretKey", server.Config.Jwt.Key)
+	}
+}
+
+func TestNewLoggingServeMux(t *testing.T) {
+	server := GetLoggingHTTPServer(t, "test")
+
+	go server.Start()
+
+	go func() {
+		hook := test.NewGlobal()
+
+		_, err := http.Get("http://localhost:8888/")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		if len(hook.Entries) != 1 {
+			t.Fatalf("Must return 1 but : %d", len(hook.Entries))
+		}
+
+		go server.Stop()
+	}()
+
+	select {
+	case <-server.Done:
+	case err := <-server.Error:
+		if err == nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 	}
 }
 
@@ -258,32 +297,4 @@ func TestStopUnstarted(t *testing.T) {
 			t.Fatalf("Non expected error")
 		}
 	}
-}
-
-func GetLoggingHTTPServer(t *testing.T, env string) (s *Server) {
-	s, err := NewServer("config.yml", env)
-	if err != nil {
-		t.Fatalf("Non expected error: %v", err)
-	}
-	return
-}
-
-func TestNewLoggingServeMux(t *testing.T) {
-	server := GetLoggingHTTPServer(t, "test")
-
-	go server.Start()
-
-	hook := test.NewGlobal()
-
-	_, err := http.Get("http://localhost:8888/")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	if len(hook.Entries) != 1 {
-		t.Fatalf("Must return 1 but : %d", len(hook.Entries))
-	}
-
-	go server.Stop()
-	<-server.Done
 }
