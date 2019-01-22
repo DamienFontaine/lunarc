@@ -36,13 +36,3 @@ func TestNewMongoWithCredentials(t *testing.T) {
 		t.Fatalf("NewMongo must have a client")
 	}
 }
-
-func TestNewMongoWithBadCredentials(t *testing.T) {
-	mongo, err := NewMongo("config.yml", "stagingMongoBadCredential")
-	if err == nil {
-		t.Fatalf("NewMongo must'nt realize a success connection")
-	}
-	if mongo != nil {
-		t.Fatalf("NewMongo must'nt have a session")
-	}
-}
