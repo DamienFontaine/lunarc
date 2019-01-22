@@ -65,11 +65,6 @@ func NewMongo(filename string, environment string) (*Mongo, error) {
 	}
 
 	db := client.Database(cnf.Database)
-	_, err = db.ListCollections(ctx, nil, nil)
-	if err != nil {
-		log.Printf("%v", err)
-		return nil, err
-	}
 
 	err = client.Ping(ctx, nil)
 	if err != nil {
